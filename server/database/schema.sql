@@ -1,3 +1,37 @@
+CREATE TABLE IF NOT EXISTS auth_otps (
+    id BIGSERIAL PRIMARY KEY,
+    identifier VARCHAR(255) NOT NULL,
+    identifier_type VARCHAR(20) NOT NULL,
+    otp_hash TEXT NOT NULL,
+    purpose VARCHAR(30) NOT NULL DEFAULT 'login',
+    expires_at TIMESTAMPTZ NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_auth_otp_identifier_type
+        CHECK (
+            identifier_type IN (
+                'phone',
+                'email'
+            )
+        ),
+
+    CONSTRAINT chk_auth_otp_purpose
+        CHECK (
+            purpose IN (
+                'login',
+                'register'
+            )
+        )
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_otps_identifier
+    ON auth_otps(identifier);
+
+CREATE INDEX IF NOT EXISTS idx_auth_otps_expires_at
+    ON auth_otps(expires_at);
+
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
     phone VARCHAR(20) UNIQUE,

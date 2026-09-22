@@ -20,6 +20,18 @@ router.post(
     authController.login
 );
 
+router.post(
+    "/request-otp",
+    authController.requestOtp
+);
+
+router.post(
+    "/verify-otp",
+    authController.verifyOtp
+);
+
+
+
 router.get(
     "/me",
     authMiddleware,

@@ -175,6 +175,76 @@ const userService = {
         };
     },
 
+    async loginWithOtp({
+        identifier,
+        identifierType
+    }) {
+        if (!identifier) {
+            throw new Error(
+                "Identifier is required"
+            );
+        }
+
+        let user = null;
+
+        if (
+            identifierType ===
+            "phone"
+        ) {
+            user =
+                await userRepository.getByPhone(
+                    identifier
+                );
+        } else if (
+            identifierType ===
+            "email"
+        ) {
+            user =
+                await userRepository.getByEmail(
+                    identifier
+                );
+        } else {
+            throw new Error(
+                "Invalid identifier type"
+            );
+        }
+
+        if (!user) {
+            throw new Error(
+                "User not found"
+            );
+        }
+
+        const token =
+            jwt.sign(
+                {
+                    userId: user.id
+                },
+                process.env.JWT_SECRET,
+                {
+                    expiresIn: "30d"
+                }
+            );
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                phone: user.phone,
+                email: user.email,
+                display_name:
+                    user.display_name,
+                avatar_url:
+                    user.avatar_url,
+                about: user.about,
+                last_seen_at:
+                    user.last_seen_at,
+                created_at:
+                    user.created_at
+            }
+        };
+    },
+
     async updateLastSeen(userId) {
 
         return userRepository.updateLastSeen(
