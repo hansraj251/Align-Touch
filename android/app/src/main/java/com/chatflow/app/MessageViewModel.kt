@@ -35,6 +35,9 @@ class MessageViewModel(
     private val socketManager =
         SocketManager()
 
+    private val socketMessages =
+        mutableListOf<Message>()
+
     private val _uiState =
         MutableStateFlow(
             MessageUiState()
@@ -61,6 +64,8 @@ class MessageViewModel(
 
             return
         }
+
+        socketMessages.clear()
 
         _uiState.value =
             _uiState.value.copy(
@@ -285,6 +290,10 @@ class MessageViewModel(
                                 it.id == message.id
                             }
                         ) {
+                            socketMessages.add(
+                                message
+                            )
+
                             _uiState.value =
                                 _uiState.value.copy(
                                     messages =
@@ -343,7 +352,12 @@ class MessageViewModel(
                     _uiState.value.copy(
                         loading = false,
                         messages =
-                            response.messages,
+                            MessageMerge.mergeMessages(
+                                restMessages =
+                                    response.messages,
+                                socketMessages =
+                                    socketMessages
+                            ),
                         message = ""
                     )
 

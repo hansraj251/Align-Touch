@@ -485,20 +485,23 @@ fun ChatFlowApp() {
                 Modifier.fillMaxSize()
         ) {
 
-            Text(
-                text = "",
-                style =
-                    MaterialTheme
-                        .typography
-                        .headlineMedium,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = 16.dp,
-                            vertical = 12.dp
-                        )
-            )
+            if (selectedConversation == null) {
+                Text(
+                    text = "",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .headlineMedium,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = 16.dp,
+                                vertical = 12.dp
+                            )
+                )
+            }
+
 
             androidx.compose.foundation.layout.Box(
                 modifier =
@@ -1473,8 +1476,10 @@ fun ChatScreen(
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .padding(
-                        horizontal = 12.dp,
-                        vertical = 6.dp
+                        start = 12.dp,
+                        top = 0.dp,
+                        end = 12.dp,
+                        bottom = 6.dp
                     ),
             verticalAlignment =
                 Alignment.CenterVertically
