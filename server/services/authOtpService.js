@@ -4,6 +4,9 @@ const crypto =
 const authOtpRepository =
     require("../repositories/authOtpRepository");
 
+const emailService =
+    require("./emailService");
+
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
 
@@ -80,6 +83,25 @@ const authOtpService = {
                 purpose,
                 expiresAt
             });
+
+        if (
+            identifierType ===
+            "email"
+        ) {
+
+            await emailService.sendOtpEmail({
+                to: identifier,
+                otp
+            });
+
+        } else {
+
+            console.log(
+                "ChatFlow OTP:",
+                identifier,
+                otp
+            );
+        }
 
         return {
             id: record.id,

@@ -210,9 +210,39 @@ const userService = {
         }
 
         if (!user) {
-            throw new Error(
-                "User not found"
-            );
+
+            const displayName =
+                identifierType ===
+                "email"
+                    ? identifier.split("@")[0]
+                    : "ChatFlow User";
+
+            user =
+                await userRepository.createOtpUser({
+                    phone:
+                        identifierType ===
+                        "phone"
+                            ? identifier
+                            : null,
+                    email:
+                        identifierType ===
+                        "email"
+                            ? identifier
+                            : null,
+                    displayName
+                });
+
+                if (
+                    identifierType ===
+                    "phone"
+                ) {
+
+                    await userRepository
+                        .linkUserToPhoneContacts(
+                            user.id,
+                            identifier
+                        );
+                }
         }
 
         const token =

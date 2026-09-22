@@ -40,6 +40,47 @@ const userRepository = {
         return result.rows[0];
     },
 
+    async createOtpUser({
+        phone,
+        email,
+        displayName
+    }) {
+
+        const result =
+            await pool.query(
+                `
+                INSERT INTO users (
+                    phone,
+                    email,
+                    password_hash,
+                    display_name
+                )
+                VALUES (
+                    $1,
+                    $2,
+                    NULL,
+                    $3
+                )
+                RETURNING
+                    id,
+                    phone,
+                    email,
+                    display_name,
+                    avatar_url,
+                    about,
+                    last_seen_at,
+                    created_at
+                `,
+                [
+                    phone,
+                    email,
+                    displayName
+                ]
+            );
+
+        return result.rows[0];
+    },
+
     async getById(id) {
 
         const result =
@@ -115,8 +156,37 @@ const userRepository = {
             );
 
         return result.rows[0] || null;
-    }
-,
+    },
+
+    async linkUserToPhoneContacts(
+        userId,
+        phone
+    ) {
+
+        const result =
+            await pool.query(
+                `
+                UPDATE contacts
+                SET
+                    linked_user_id = $1,
+                    updated_at = NOW()
+                WHERE phone = $2
+                  AND linked_user_id IS NULL
+                RETURNING
+                    id,
+                    owner_user_id,
+                    linked_user_id,
+                    phone
+                `,
+                [
+                    userId,
+                    phone
+                ]
+            );
+
+        return result.rows;
+    },
+
     async updateLastSeen(userId) {
 
         const result =

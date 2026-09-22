@@ -1,4 +1,6 @@
-require("dotenv").config();
+require("dotenv").config({
+    path: __dirname + "/.env"
+});
 
 const http =
     require("http");
@@ -24,6 +26,9 @@ const conversationRoutes =
 
 const messageRoutes =
     require("./routes/messageRoutes");
+
+const contactRoutes =
+    require("./routes/contactRoutes");
 
 const conversationRepository =
     require("./repositories/conversationRepository");
@@ -97,6 +102,11 @@ app.use(
 app.use(
     "/api/messages",
     messageRoutes
+);
+
+app.use(
+    "/api/contacts",
+    contactRoutes
 );
 
 app.get(

@@ -1,5 +1,11 @@
 package com.chatflow.app
 
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import com.chatflow.app.data.Conversation
 
 import android.util.Log
@@ -37,8 +43,25 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Icon
+import androidx.compose.ui.unit.sp
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Circle
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +79,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
+
         super.onCreate(
             savedInstanceState
         )
@@ -69,21 +93,38 @@ class MainActivity : ComponentActivity() {
 
             MaterialTheme {
 
-                if (sessionManager.isLoggedIn()) {
+                var loggedIn by
+                    remember {
+                        mutableStateOf(
+                            sessionManager.isLoggedIn()
+                        )
+                    }
+
+                if (loggedIn) {
 
                     ChatFlowApp()
 
                 } else {
 
-                    LoginScreen()
+                    LoginScreen(
+                        onLoginSuccess = {
+                            loggedIn = true
+                        }
+                    )
+
                 }
+
             }
+
         }
+
     }
+
 }
 
 @Composable
 fun LoginScreen(
+    onLoginSuccess: () -> Unit,
     viewModel: LoginViewModel =
         viewModel()
 ) {
@@ -99,6 +140,14 @@ fun LoginScreen(
     val uiState by
         viewModel.uiState.collectAsState()
 
+    androidx.compose.runtime.LaunchedEffect(
+        uiState.success
+    ) {
+        if (uiState.success) {
+            onLoginSuccess()
+        }
+    }
+
     Column(
         modifier =
             Modifier
@@ -113,7 +162,7 @@ fun LoginScreen(
     ) {
 
         Text(
-            text = "ChatFlow",
+            text = "",
             style =
                 MaterialTheme
                     .typography
@@ -133,7 +182,7 @@ fun LoginScreen(
             },
 
             label = {
-                Text("Phone or Email")
+                Text("Email")
             },
 
             singleLine = true,
@@ -260,213 +309,1119 @@ fun ChatFlowApp() {
             mutableStateOf<Conversation?>(null)
         }
 
-    if (
-        selectedConversation == null
+    var showNewChat by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var selectedTab by
+        remember {
+            mutableStateOf(0)
+        }
+
+    var drawerOpen by
+        remember {
+            mutableStateOf(false)
+        }
+
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    val drawerState =
+        androidx.compose.material3.rememberDrawerState(
+            initialValue =
+                androidx.compose.material3.DrawerValue.Closed
+        )
+
+    androidx.compose.runtime.LaunchedEffect(
+        drawerOpen
+    ) {
+        if (drawerOpen) {
+            drawerState.open()
+        } else {
+            drawerState.close()
+        }
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+
+            ModalDrawerSheet {
+
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(
+                                vertical = 12.dp
+                            )
+                ) {
+
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 12.dp,
+                                    vertical = 12.dp
+                                ),
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween,
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .headlineMedium
+                        )
+
+                        TextButton(
+                            onClick = {
+                                drawerOpen = false
+                            }
+                        ) {
+                            Text("✕")
+                        }
+                    }
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Profile")
+                        },
+                        selected = false,
+                        onClick = {
+                            drawerOpen = false
+                        }
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Settings")
+                        },
+                        selected = false,
+                        onClick = {
+                            drawerOpen = false
+                        }
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Privacy")
+                        },
+                        selected = false,
+                        onClick = {
+                            drawerOpen = false
+                        }
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Notifications")
+                        },
+                        selected = false,
+                        onClick = {
+                            drawerOpen = false
+                        }
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Chats")
+                        },
+                        selected = false,
+                        onClick = {
+                            selectedTab = 0
+                            selectedConversation = null
+                            showNewChat = false
+                            drawerOpen = false
+                        }
+                    )
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Help")
+                        },
+                        selected = false,
+                        onClick = {
+                            drawerOpen = false
+                        }
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.weight(1f)
+                    )
+
+                    androidx.compose.material3.HorizontalDivider()
+
+                    NavigationDrawerItem(
+                        label = {
+                            Text("Logout")
+                        },
+                        selected = false,
+                        onClick = {
+
+                            SessionManager(context)
+                                .clearSession()
+
+                            (context as? MainActivity)
+                                ?.recreate()
+                        }
+                    )
+                }
+            }
+        },
+
+        gesturesEnabled = true
+
     ) {
 
-        ConversationListScreen(
-            onConversationClick = {
-                selectedConversation =
-                    it
-            }
-        )
+        Column(
+            modifier =
+                Modifier.fillMaxSize()
+        ) {
 
-    } else {
+            Text(
+                text = "",
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineMedium,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 16.dp,
+                            vertical = 12.dp
+                        )
+            )
 
-        ChatScreen(
-            conversationId =
-                selectedConversation!!.id,
-            contactName =
-                selectedConversation!!.other_user_display_name,
-            contactPhone =
-                selectedConversation!!.other_user_phone,
-            onBack = {
-                selectedConversation = null
+            androidx.compose.foundation.layout.Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+            ) {
+
+                if (selectedTab == 0) {
+
+                    if (showNewChat) {
+
+                        NewChatScreen(
+                            onBack = {
+                                showNewChat = false
+                            },
+                            onConversationCreated = {
+                                showNewChat = false
+                                selectedConversation = it
+                            }
+                        )
+
+                    } else if (
+                        selectedConversation == null
+                    ) {
+
+                        ConversationListScreen(
+                            onConversationClick = {
+                                selectedConversation = it
+                            },
+                            onNewChatClick = {
+                                showNewChat = true
+                            },
+                            onMenuClick = {
+                                drawerOpen = true
+                            }
+                        )
+
+                    } else {
+
+                        ChatScreen(
+                            conversationId =
+                                selectedConversation!!.id,
+                            contactName =
+                                selectedConversation!!
+                                    .other_user_display_name,
+                            contactPhone =
+                                selectedConversation!!
+                                    .other_user_phone,
+                            onBack = {
+                                selectedConversation = null
+                            }
+                        )
+                    }
+
+                } else {
+
+                    val title =
+                        when (selectedTab) {
+                            1 -> "Updates"
+                            2 -> "Communities"
+                            else -> "Calls"
+                        }
+
+                    androidx.compose.foundation.layout.Box(
+                        modifier =
+                            Modifier.fillMaxSize(),
+                        contentAlignment =
+                            Alignment.Center
+                    ) {
+
+                        Text(
+                            text = title,
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .headlineMedium
+                        )
+                    }
+                }
             }
-        )
+
+            if (
+                selectedConversation == null &&
+                !showNewChat
+            ) {
+
+                androidx.compose.material3.NavigationBar {
+
+                    NavigationBarItem(
+                        selected = selectedTab == 0,
+                        onClick = {
+                            selectedTab = 0
+                            selectedConversation = null
+                            showNewChat = false
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Chat,
+                                contentDescription = "Chats"
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Chats",
+                                fontSize = 12.sp
+                            )
+                        },
+                        alwaysShowLabel = true
+                    )
+
+                    NavigationBarItem(
+                        selected = selectedTab == 1,
+                        onClick = {
+                            selectedTab = 1
+                            selectedConversation = null
+                            showNewChat = false
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Circle,
+                                contentDescription = "Updates"
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Updates",
+                                fontSize = 12.sp
+                            )
+                        },
+                        alwaysShowLabel = true
+                    )
+
+                    NavigationBarItem(
+                        selected = selectedTab == 2,
+                        onClick = {
+                            selectedTab = 2
+                            selectedConversation = null
+                            showNewChat = false
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Group,
+                                contentDescription = "Communities"
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Communities",
+                                fontSize = 12.sp
+                            )
+                        },
+                        alwaysShowLabel = true
+                    )
+
+                    NavigationBarItem(
+                        selected = selectedTab == 3,
+                        onClick = {
+                            selectedTab = 3
+                            selectedConversation = null
+                            showNewChat = false
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Call,
+                                contentDescription = "Calls"
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "Calls",
+                                fontSize = 12.sp
+                            )
+                        },
+                        alwaysShowLabel = true
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun ConversationListScreen(
     onConversationClick: (Conversation) -> Unit,
-    viewModel: ConversationViewModel =
-        viewModel()
+    onNewChatClick: () -> Unit,
+    onMenuClick: () -> Unit,
+    viewModel: ConversationViewModel = viewModel()
 ) {
-    val uiState by
-        viewModel.uiState.collectAsState()
 
     val context =
         androidx.compose.ui.platform.LocalContext.current
 
-    androidx.compose.runtime.LaunchedEffect(
-        Unit
-    ) {
+    val uiState by
+        viewModel.uiState.collectAsState()
+
+    var searchQuery by
+        remember {
+            mutableStateOf("")
+        }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.loadConversations()
+    }
+
+    val filteredConversations =
+        uiState.conversations.filter { conversation ->
+
+            val query =
+                searchQuery.trim()
+
+            query.isBlank() ||
+                conversation
+                    .other_user_display_name
+                    .contains(
+                        query,
+                        ignoreCase = true
+                    ) ||
+                (
+                    conversation.other_user_phone
+                        ?: ""
+                ).contains(query) ||
+                (
+                    conversation.other_user_email
+                        ?: ""
+                ).contains(query)
+        }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+    ) {
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 12.dp,
+                        vertical = 6.dp
+                    ),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                },
+                modifier =
+                    Modifier.weight(1f),
+                singleLine = true,
+                placeholder = {
+                    Text(
+                        "Search"
+                    )
+                },
+                leadingIcon = {
+                    Text("⌕")
+                },
+                shape =
+                    androidx.compose.foundation.shape
+                        .RoundedCornerShape(28.dp)
+            )
+
+            androidx.compose.material3.TextButton(
+                onClick = onMenuClick
+            ) {
+                Text("⋮")
+            }
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(10.dp)
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(
+                        androidx.compose.foundation
+                            .rememberScrollState()
+                    )
+                    .padding(
+                        horizontal = 16.dp
+                    ),
+            horizontalArrangement =
+                Arrangement.spacedBy(8.dp)
+        ) {
+
+            listOf(
+                "All",
+                "Unread",
+                "Favorites",
+                "Groups"
+            ).forEach { label ->
+
+                androidx.compose.material3.Surface(
+                    modifier =
+                        Modifier.clickable { },
+                    shape =
+                        androidx.compose.foundation.shape
+                            .RoundedCornerShape(22.dp),
+                    tonalElevation =
+                        if (label == "All") 2.dp
+                        else 0.dp
+                ) {
+
+                    Text(
+                        text = label,
+                        modifier =
+                            Modifier.padding(
+                                horizontal = 16.dp,
+                                vertical = 9.dp
+                            )
+                    )
+                }
+            }
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(8.dp)
+        )
+
+        androidx.compose.material3.HorizontalDivider()
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { }
+                    .padding(
+                        horizontal = 20.dp,
+                        vertical = 15.dp
+                    ),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            Text(
+                text = "▣",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleLarge
+            )
+
+            Text(
+                text = "Archived",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleMedium,
+                modifier =
+                    Modifier.padding(
+                        start = 18.dp
+                    )
+            )
+        }
+
+        when {
+
+            uiState.loading -> {
+
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    androidx.compose.material3
+                        .CircularProgressIndicator()
+                }
+            }
+
+            uiState.message.isNotBlank() -> {
+
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    Text(
+                        text =
+                            uiState.message
+                    )
+                }
+            }
+
+            filteredConversations.isEmpty() -> {
+
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    Text(
+                        text =
+                            if (searchQuery.isBlank())
+                                "No conversations yet"
+                            else
+                                "No chats found"
+                    )
+                }
+            }
+
+            else -> {
+
+                LazyColumn(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                ) {
+
+                    items(
+                        filteredConversations
+                    ) { conversation ->
+
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onConversationClick(
+                                            conversation
+                                        )
+                                    }
+                                    .padding(
+                                        horizontal = 16.dp,
+                                        vertical = 11.dp
+                                    ),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+
+                            androidx.compose.material3.Surface(
+                                modifier =
+                                    Modifier.size(54.dp),
+                                shape =
+                                    androidx.compose.foundation
+                                        .shape
+                                        .CircleShape
+                            ) {
+
+                                androidx.compose.foundation.layout
+                                    .Box(
+                                        contentAlignment =
+                                            Alignment.Center
+                                    ) {
+
+                                    Text(
+                                        text =
+                                            conversation
+                                                .other_user_display_name
+                                                .take(1)
+                                                .uppercase(),
+                                        style =
+                                            MaterialTheme
+                                                .typography
+                                                .titleLarge
+                                    )
+                                }
+                            }
+
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .padding(
+                                            start = 14.dp
+                                        )
+                            ) {
+
+                                Text(
+                                    text =
+                                        conversation
+                                            .other_user_display_name,
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .titleMedium
+                                )
+
+                                Text(
+                                    text =
+                                        conversation
+                                            .other_user_phone
+                                            ?: conversation
+                                                .other_user_email
+                                            ?: "",
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodyMedium,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        androidx.compose.material3.HorizontalDivider(
+                            modifier =
+                                Modifier.padding(
+                                    start = 84.dp
+                                )
+                        )
+                    }
+                }
+            }
+        }
+
+        androidx.compose.foundation.layout.Box(
+            modifier =
+                Modifier.fillMaxWidth()
+        ) {
+            androidx.compose.material3.FloatingActionButton(
+                onClick = onNewChatClick,
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(
+                            end = 16.dp,
+                            top = 8.dp,
+                            bottom = 8.dp
+                        )
+            ) {
+                Text(
+                    text = "＋"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun NewChatScreen(
+    onBack: () -> Unit,
+    onConversationCreated: (Conversation) -> Unit,
+    viewModel: NewChatViewModel = viewModel()
+) {
+
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    val sessionManager =
+        SessionManager(context)
+
+    val token =
+        sessionManager.getToken()
+
+    val uiState by
+        viewModel.uiState.collectAsState()
+
+    var showNewContact by
+        remember {
+            mutableStateOf(false)
+        }
+
+    androidx.compose.runtime.LaunchedEffect(
+        token
+    ) {
+
+        if (!token.isNullOrBlank()) {
+            viewModel.loadUsers(token)
+            viewModel.loadContacts(token)
+        }
+    }
+
+    if (showNewContact) {
+        NewContactScreen(
+            onBack = {
+                showNewContact = false
+            },
+            onSave = { firstName, lastName, username, countryCode, phone ->
+
+                if (!token.isNullOrBlank()) {
+
+                    viewModel.createContact(
+                        token = token,
+                        request =
+                            com.chatflow.app.data.CreateContactRequest(
+                                firstName = firstName,
+                                lastName =
+                                    lastName.ifBlank {
+                                        null
+                                    },
+                                username =
+                                    username.ifBlank {
+                                        null
+                                    },
+                                countryCode =
+                                    countryCode,
+                                phone = phone
+                            ),
+                        onSuccess = {
+                            showNewContact = false
+                            viewModel.loadContacts(token)
+                        }
+                    )
+                }
+            }
+        )
+        return
     }
 
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(
+                    horizontal = 16.dp
+                )
     ) {
-        androidx.compose.foundation.layout.Row(
+
+        Row(
             modifier =
                 Modifier.fillMaxWidth(),
-            horizontalArrangement =
-                Arrangement.SpaceBetween,
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
+            androidx.compose.material3.IconButton(
+                onClick = onBack
+            ) {
+                Icon(
+                    imageVector =
+                        Icons.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+
             Text(
-                text = "Chats",
+                text = "Select contact",
                 style =
                     MaterialTheme
                         .typography
-                        .headlineLarge
+                        .headlineSmall,
+                modifier =
+                    Modifier.padding(
+                        start = 4.dp
+                    )
             )
+        }
 
-            androidx.compose.material3.TextButton(
-                onClick = {
-                    SessionManager(context)
-                        .clearSession()
+        Spacer(
+            modifier =
+                Modifier.height(8.dp)
+        )
 
-                    (context as? MainActivity)
-                        ?.recreate()
-                }
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        androidx.compose.material3.Surface(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { },
+            shape =
+                androidx.compose.foundation.shape
+                    .RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
-                Text("Logout")
+                Icon(
+                    imageVector = Icons.Filled.GroupAdd,
+                    contentDescription = "New Group"
+                )
+
+                Text(
+                    text = "New Group",
+                    modifier =
+                        Modifier.padding(
+                            start = 16.dp
+                        ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium
+                )
             }
         }
 
         Spacer(
             modifier =
-                Modifier.height(16.dp)
+                Modifier.height(8.dp)
         )
 
-        if (uiState.loading) {
-
-            androidx.compose.foundation.layout.Box(
+        androidx.compose.material3.Surface(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                    showNewContact = true
+                },
+            shape =
+                androidx.compose.foundation.shape
+                    .RoundedCornerShape(16.dp)
+        ) {
+            Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                contentAlignment =
-                    Alignment.Center
+                        .padding(16.dp),
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
-                CircularProgressIndicator()
-            }
+                Icon(
+                    imageVector = Icons.Filled.PersonAdd,
+                    contentDescription = "New Contact"
+                )
 
-        } else if (
-            uiState.message.isNotBlank()
-        ) {
-
-            Text(
-                text = uiState.message,
-                color =
-                    MaterialTheme
-                        .colorScheme
-                        .error
-            )
-
-        } else if (
-            uiState.conversations.isEmpty()
-        ) {
-
-            androidx.compose.foundation.layout.Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                contentAlignment =
-                    Alignment.Center
-            ) {
                 Text(
-                    text = "No conversations yet"
+                    text = "New Contact",
+                    modifier =
+                        Modifier.padding(
+                            start = 16.dp
+                        ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium
                 )
             }
+        }
 
-        } else {
+        Spacer(
+            modifier =
+                Modifier.height(20.dp)
+        )
 
-            LazyColumn(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-            ) {
-                items(
-                    uiState.conversations,
-                    key = {
-                        it.id
-                    }
-                ) { conversation ->
+        Text(
+            text = "Contacts",
+            style =
+                MaterialTheme
+                    .typography
+                    .titleMedium
+        )
 
-                    androidx.compose.material3.Card(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    vertical = 4.dp
-                                ),
-                        onClick = {
-                            onConversationClick(
-                                conversation
-                            )
-                        }
-                    ) {
+        Spacer(
+            modifier =
+                Modifier.height(8.dp)
+        )
+
+        when {
+
+            uiState.loading -> {
+
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier.fillMaxSize(),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    androidx.compose.material3.CircularProgressIndicator()
+                }
+            }
+
+            uiState.message.isNotBlank() -> {
+
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier.fillMaxSize(),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    Text(
+                        text = uiState.message
+                    )
+                }
+            }
+
+            uiState.users.isEmpty() -> {
+
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier.fillMaxSize(),
+                    contentAlignment =
+                        Alignment.Center
+                ) {
+
+                    Text(
+                        text = "No users available"
+                    )
+                }
+            }
+
+            else -> {
+
+                LazyColumn(
+                    modifier =
+                        Modifier.fillMaxSize()
+                ) {
+
+                    items(
+                        uiState.contacts
+                    ) { contact ->
+
+                        val contactName =
+                            listOfNotNull(
+                                contact.first_name.takeIf {
+                                    it.isNotBlank()
+                                },
+                                contact.last_name?.takeIf {
+                                    it.isNotBlank()
+                                }
+                            ).joinToString(" ")
+
                         Column(
+
                             modifier =
-                                Modifier.padding(16.dp)
+
+                                Modifier
+
+                                    .fillMaxWidth()
+
+                                    .clickable(
+                                        enabled =
+                                            !contact.linked_user_id
+                                                .isNullOrBlank()
+                                    ) {
+
+                                        val linkedUserId =
+                                            contact.linked_user_id
+
+                                        if (
+                                            !token.isNullOrBlank() &&
+                                            !linkedUserId.isNullOrBlank()
+                                        ) {
+
+                                            viewModel
+                                                .createConversation(
+
+                                                    token = token,
+
+                                                    userId =
+                                                        linkedUserId
+
+                                                ) { conversation ->
+
+                                                onConversationCreated(
+                                                    conversation.copy(
+                                                        title =
+                                                            contactName,
+                                                        other_user_phone =
+                                                            contact.phone,
+                                                        other_user_display_name =
+                                                            contactName
+                                                    )
+                                                )
+                                            }
+
+                                        }
+
+                                    }
+
+                                    .padding(
+
+                                        vertical = 14.dp
+
+                                    )
+
                         ) {
+
                             Text(
+
                                 text =
-                                    conversation
-                                        .other_user_display_name,
+                                    contactName.ifBlank {
+                                        contact.phone
+                                    },
+
                                 style =
                                     MaterialTheme
                                         .typography
                                         .titleMedium
-                            )
 
-                            Spacer(
-                                modifier =
-                                    Modifier.height(4.dp)
                             )
 
                             Text(
+
                                 text =
-                                    conversation
-                                        .other_user_phone
-                                        ?: conversation
-                                            .other_user_email
-                                        ?: "No contact"
+                                    contact.country_code +
+                                        " " +
+                                        contact.phone,
+
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .bodyMedium
+
                             )
 
-                            if (
-                                !conversation
-                                    .other_user_about
-                                    .isNullOrBlank()
-                            ) {
-                                Spacer(
-                                    modifier =
-                                        Modifier.height(4.dp)
-                                )
-
-                                Text(
-                                    text =
-                                        conversation
-                                            .other_user_about
-                                            ?: ""
-                                )
-                            }
                         }
+
+                    }
                     }
                 }
             }
         }
     }
-}
 
 @Composable
 fun ChatScreen(
@@ -518,8 +1473,8 @@ fun ChatScreen(
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .padding(
-                        horizontal = 8.dp,
-                        vertical = 8.dp
+                        horizontal = 12.dp,
+                        vertical = 6.dp
                     ),
             verticalAlignment =
                 Alignment.CenterVertically
@@ -787,8 +1742,10 @@ fun ChatScreen(
                 Modifier
                     .fillMaxWidth()
                     .padding(
-                        horizontal = 10.dp,
-                        vertical = 8.dp
+                        start = 10.dp,
+                        top = 8.dp,
+                        end = 10.dp,
+                        bottom = 16.dp
                     ),
             verticalAlignment =
                 Alignment.CenterVertically
@@ -918,3 +1875,199 @@ fun ChatScreen(
     }
 }
 
+
+@Composable
+fun NewContactScreen(
+    onBack: () -> Unit,
+    onSave: (
+        String,
+        String,
+        String,
+        String,
+        String
+    ) -> Unit
+) {
+
+    var firstName by
+        remember {
+            mutableStateOf("")
+        }
+
+    var lastName by
+        remember {
+            mutableStateOf("")
+        }
+
+    var username by
+        remember {
+            mutableStateOf("")
+        }
+
+    var countryCode by
+        remember {
+            mutableStateOf("+91")
+        }
+
+    var phone by
+        remember {
+            mutableStateOf("")
+        }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+    ) {
+
+        Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            androidx.compose.material3.IconButton(
+                onClick = onBack
+            ) {
+
+                Icon(
+                    imageVector =
+                        Icons.Filled.ArrowBack,
+                    contentDescription =
+                        "Back"
+                )
+            }
+
+            Text(
+                text = "New Contact",
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+                modifier =
+                    Modifier.padding(
+                        start = 4.dp
+                    )
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(20.dp)
+        )
+
+        OutlinedTextField(
+            value = firstName,
+            onValueChange = {
+                firstName = it
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
+            label = {
+                Text("First name")
+            },
+            singleLine = true
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = {
+                lastName = it
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
+            label = {
+                Text("Last name")
+            },
+            singleLine = true
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        OutlinedTextField(
+            value = username,
+            onValueChange = {
+                username = it
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
+            label = {
+                Text("Username")
+            },
+            singleLine = true
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+            horizontalArrangement =
+                Arrangement.spacedBy(8.dp)
+        ) {
+
+            OutlinedTextField(
+                value = countryCode,
+                onValueChange = {
+                    countryCode = it
+                },
+                modifier =
+                    Modifier.width(100.dp),
+                label = {
+                    Text("Code")
+                },
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = phone,
+                onValueChange = {
+                    phone = it
+                },
+                modifier =
+                    Modifier.weight(1f),
+                label = {
+                    Text("Phone")
+                },
+                singleLine = true
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(24.dp)
+        )
+
+        Button(
+            onClick = {
+                onSave(
+                    firstName,
+                    lastName,
+                    username,
+                    countryCode,
+                    phone
+                )
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
+            enabled =
+                firstName.isNotBlank() &&
+                phone.isNotBlank()
+        ) {
+
+            Text("Save")
+        }
+    }
+}

@@ -56,3 +56,17 @@ data class User(
     val last_seen_at: String?,
     val created_at: String?
 )
+
+data class UserListResponse(
+    val success: Boolean,
+    val users: List<User>
+)
+
+data class CreateDirectConversationRequest(
+    val otherUserId: String
+)
+
+data class CreateDirectConversationResponse(
+    val success: Boolean,
+    val conversation: Conversation
+)

@@ -23,11 +23,24 @@ interface AuthApi {
         @Body request: OtpVerifyRequest
     ): OtpResponse
 
+    @GET("api/users")
+    suspend fun getUsers(
+        @Header("Authorization")
+        authorization: String
+    ): UserListResponse
+
     @GET("api/conversations")
     suspend fun getConversations(
         @Header("Authorization")
         authorization: String
     ): ConversationResponse
+
+    @POST("api/conversations/direct")
+    suspend fun createDirectConversation(
+        @Body request: CreateDirectConversationRequest,
+        @Header("Authorization")
+        authorization: String
+    ): CreateDirectConversationResponse
 
     @GET("api/messages/{conversationId}")
     suspend fun getMessages(
@@ -45,4 +58,25 @@ interface AuthApi {
         @Header("Authorization")
         authorization: String
     ): SendMessageResponse
+    @GET("api/contacts")
+    suspend fun getContacts(
+        @Header("Authorization")
+        authorization: String
+    ): ContactListResponse
+
+    @GET("api/contacts/{id}")
+    suspend fun getContact(
+        @Path("id")
+        contactId: String,
+        @Header("Authorization")
+        authorization: String
+    ): CreateContactResponse
+
+    @POST("api/contacts")
+    suspend fun createContact(
+        @Body request: CreateContactRequest,
+        @Header("Authorization")
+        authorization: String
+    ): CreateContactResponse
+
 }

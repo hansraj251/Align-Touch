@@ -18,15 +18,24 @@ const conversationRepository = {
                     c.avatar_url,
                     c.created_by,
                     c.created_at,
-                    c.updated_at
+                    c.updated_at,
+                    u.id AS other_user_id,
+                    u.phone AS other_user_phone,
+                    u.email AS other_user_email,
+                    u.display_name AS other_user_display_name,
+                    u.avatar_url AS other_user_avatar_url,
+                    u.about AS other_user_about,
+                    u.last_seen_at AS other_user_last_seen_at
                 FROM conversations c
                 INNER JOIN conversation_members cm1
                     ON cm1.conversation_id = c.id
+                    AND cm1.user_id = $1
                 INNER JOIN conversation_members cm2
                     ON cm2.conversation_id = c.id
-                WHERE c.type = 'direct'
-                    AND cm1.user_id = $1
                     AND cm2.user_id = $2
+                INNER JOIN users u
+                    ON u.id = cm2.user_id
+                WHERE c.type = 'direct'
                 LIMIT 1
                 `,
                 [
@@ -124,7 +133,43 @@ const conversationRepository = {
                 "COMMIT"
             );
 
-            return conversation;
+            const result =
+                await client.query(
+                    `
+                    SELECT
+                        c.id,
+                        c.type,
+                        c.title,
+                        c.avatar_url,
+                        c.created_by,
+                        c.created_at,
+                        c.updated_at,
+                        u.id AS other_user_id,
+                        u.phone AS other_user_phone,
+                        u.email AS other_user_email,
+                        u.display_name AS other_user_display_name,
+                        u.avatar_url AS other_user_avatar_url,
+                        u.about AS other_user_about,
+                        u.last_seen_at AS other_user_last_seen_at
+                    FROM conversations c
+                    INNER JOIN conversation_members cm
+                        ON cm.conversation_id = c.id
+                        AND cm.user_id = $1
+                    INNER JOIN conversation_members other_cm
+                        ON other_cm.conversation_id = c.id
+                        AND other_cm.user_id <> $1
+                    INNER JOIN users u
+                        ON u.id = other_cm.user_id
+                    WHERE c.id = $2
+                    LIMIT 1
+                    `,
+                    [
+                        userId,
+                        conversation.id
+                    ]
+                );
+
+            return result.rows[0] || null;
 
         } catch (error) {
 
@@ -181,9 +226,21 @@ const conversationRepository = {
                     c.created_at,
                     c.updated_at,
                     u.id AS other_user_id,
-                    u.phone AS other_user_phone,
+                    COALESCE(
+                        contact.country_code || contact.phone,
+                        u.phone
+                    ) AS other_user_phone,
                     u.email AS other_user_email,
-                    u.display_name AS other_user_display_name,
+                    COALESCE(
+                        NULLIF(
+                            TRIM(
+                                contact.first_name || ' ' ||
+                                COALESCE(contact.last_name, '')
+                            ),
+                            ''
+                        ),
+                        u.display_name
+                    ) AS other_user_display_name,
                     u.avatar_url AS other_user_avatar_url,
                     u.about AS other_user_about,
                     u.last_seen_at AS other_user_last_seen_at
@@ -196,6 +253,9 @@ const conversationRepository = {
                     AND other_cm.user_id <> $1
                 INNER JOIN users u
                     ON u.id = other_cm.user_id
+                LEFT JOIN contacts contact
+                    ON contact.owner_user_id = $1
+                    AND contact.linked_user_id = other_cm.user_id
                 WHERE c.type = 'direct'
                 ORDER BY c.updated_at DESC
                 `,
