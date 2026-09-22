@@ -275,6 +275,66 @@ const userService = {
         };
     },
 
+    async getProfile(userId) {
+
+        return userRepository.getById(
+            userId
+        );
+    },
+
+    async updateProfile(
+        userId,
+        {
+            displayName,
+            about,
+            avatarUrl
+        }
+    ) {
+
+        const normalizedDisplayName =
+            displayName?.trim();
+
+        if (!normalizedDisplayName) {
+            throw new Error(
+                "Display name is required"
+            );
+        }
+
+        if (
+            normalizedDisplayName.length >
+            100
+        ) {
+            throw new Error(
+                "Display name must be at most 100 characters"
+            );
+        }
+
+        const normalizedAbout =
+            about?.trim() || null;
+
+        if (
+            normalizedAbout &&
+            normalizedAbout.length >
+            500
+        ) {
+            throw new Error(
+                "About must be at most 500 characters"
+            );
+        }
+
+        return userRepository.updateProfile(
+            userId,
+            {
+                displayName:
+                    normalizedDisplayName,
+                about:
+                    normalizedAbout,
+                avatarUrl:
+                    avatarUrl?.trim() || null
+            }
+        );
+    },
+
     async updateLastSeen(userId) {
 
         return userRepository.updateLastSeen(

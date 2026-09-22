@@ -57,6 +57,17 @@ data class User(
     val created_at: String?
 )
 
+data class UpdateProfileRequest(
+    val displayName: String,
+    val about: String? = null,
+    val avatarUrl: String? = null
+)
+
+data class ProfileResponse(
+    val success: Boolean,
+    val user: User?
+)
+
 data class UserListResponse(
     val success: Boolean,
     val users: List<User>

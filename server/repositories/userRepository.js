@@ -187,6 +187,69 @@ const userRepository = {
         return result.rows;
     },
 
+    async getProfile(userId) {
+
+        const result =
+            await pool.query(
+                `
+                SELECT
+                    id,
+                    phone,
+                    email,
+                    display_name,
+                    avatar_url,
+                    about,
+                    last_seen_at,
+                    created_at
+                FROM users
+                WHERE id = $1
+                `,
+                [userId]
+            );
+
+        return result.rows[0] || null;
+    },
+
+    async updateProfile(
+        userId,
+        {
+            displayName,
+            about,
+            avatarUrl
+        }
+    ) {
+
+        const result =
+            await pool.query(
+                `
+                UPDATE users
+                SET
+                    display_name = $2,
+                    about = $3,
+                    avatar_url = $4,
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING
+                    id,
+                    phone,
+                    email,
+                    display_name,
+                    avatar_url,
+                    about,
+                    last_seen_at,
+                    created_at
+                `,
+                [
+                    userId,
+                    displayName,
+                    about,
+                    avatarUrl
+                ]
+            );
+
+        return result.rows[0] || null;
+    },
+
     async updateLastSeen(userId) {
 
         const result =

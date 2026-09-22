@@ -3,6 +3,7 @@ package com.chatflow.app.data
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -22,6 +23,19 @@ interface AuthApi {
     suspend fun verifyOtp(
         @Body request: OtpVerifyRequest
     ): OtpResponse
+
+    @GET("api/users/me")
+    suspend fun getProfile(
+        @Header("Authorization")
+        authorization: String
+    ): ProfileResponse
+
+    @PATCH("api/users/me")
+    suspend fun updateProfile(
+        @Body request: UpdateProfileRequest,
+        @Header("Authorization")
+        authorization: String
+    ): ProfileResponse
 
     @GET("api/users")
     suspend fun getUsers(

@@ -11,6 +11,18 @@ const router =
     express.Router();
 
 router.get(
+    "/me",
+    authMiddleware,
+    userController.getProfile
+);
+
+router.patch(
+    "/me",
+    authMiddleware,
+    userController.updateProfile
+);
+
+router.get(
     "/",
     authMiddleware,
     userController.listUsers

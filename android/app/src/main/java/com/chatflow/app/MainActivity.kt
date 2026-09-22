@@ -1,11 +1,9 @@
 package com.chatflow.app
 
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import com.chatflow.app.data.Conversation
 
 import android.util.Log
@@ -25,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 
 import androidx.compose.ui.graphics.Color
 
@@ -319,7 +319,7 @@ fun ChatFlowApp() {
             mutableStateOf(0)
         }
 
-    var drawerOpen by
+    var showProfile by
         remember {
             mutableStateOf(false)
         }
@@ -327,163 +327,10 @@ fun ChatFlowApp() {
     val context =
         androidx.compose.ui.platform.LocalContext.current
 
-    val drawerState =
-        androidx.compose.material3.rememberDrawerState(
-            initialValue =
-                androidx.compose.material3.DrawerValue.Closed
-        )
-
-    androidx.compose.runtime.LaunchedEffect(
-        drawerOpen
+    Column(
+        modifier =
+            Modifier.fillMaxSize()
     ) {
-        if (drawerOpen) {
-            drawerState.open()
-        } else {
-            drawerState.close()
-        }
-    }
-
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-
-            ModalDrawerSheet {
-
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(
-                                vertical = 12.dp
-                            )
-                ) {
-
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = 12.dp,
-                                    vertical = 12.dp
-                                ),
-                        horizontalArrangement =
-                            Arrangement.SpaceBetween,
-                        verticalAlignment =
-                            Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "",
-                            style =
-                                MaterialTheme
-                                    .typography
-                                    .headlineMedium
-                        )
-
-                        TextButton(
-                            onClick = {
-                                drawerOpen = false
-                            }
-                        ) {
-                            Text("✕")
-                        }
-                    }
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Profile")
-                        },
-                        selected = false,
-                        onClick = {
-                            drawerOpen = false
-                        }
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Settings")
-                        },
-                        selected = false,
-                        onClick = {
-                            drawerOpen = false
-                        }
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Privacy")
-                        },
-                        selected = false,
-                        onClick = {
-                            drawerOpen = false
-                        }
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Notifications")
-                        },
-                        selected = false,
-                        onClick = {
-                            drawerOpen = false
-                        }
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Chats")
-                        },
-                        selected = false,
-                        onClick = {
-                            selectedTab = 0
-                            selectedConversation = null
-                            showNewChat = false
-                            drawerOpen = false
-                        }
-                    )
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Help")
-                        },
-                        selected = false,
-                        onClick = {
-                            drawerOpen = false
-                        }
-                    )
-
-                    Spacer(
-                        modifier =
-                            Modifier.weight(1f)
-                    )
-
-                    androidx.compose.material3.HorizontalDivider()
-
-                    NavigationDrawerItem(
-                        label = {
-                            Text("Logout")
-                        },
-                        selected = false,
-                        onClick = {
-
-                            SessionManager(context)
-                                .clearSession()
-
-                            (context as? MainActivity)
-                                ?.recreate()
-                        }
-                    )
-                }
-            }
-        },
-
-        gesturesEnabled = true
-
-    ) {
-
-        Column(
-            modifier =
-                Modifier.fillMaxSize()
-        ) {
 
             if (selectedConversation == null) {
                 Text(
@@ -510,7 +357,15 @@ fun ChatFlowApp() {
                         .weight(1f)
             ) {
 
-                if (selectedTab == 0) {
+                if (showProfile) {
+
+                    ProfileScreen(
+                        onBack = {
+                            showProfile = false
+                        }
+                    )
+
+                } else if (selectedTab == 0) {
 
                     if (showNewChat) {
 
@@ -535,9 +390,10 @@ fun ChatFlowApp() {
                             onNewChatClick = {
                                 showNewChat = true
                             },
-                            onMenuClick = {
-                                drawerOpen = true
-                            }
+                            onProfileClick = {
+                                showProfile = true
+                            },
+                            onMenuClick = {}
                         )
 
                     } else {
@@ -681,13 +537,13 @@ fun ChatFlowApp() {
                 }
             }
         }
-    }
 }
 
 @Composable
 fun ConversationListScreen(
     onConversationClick: (Conversation) -> Unit,
     onNewChatClick: () -> Unit,
+    onProfileClick: () -> Unit,
     onMenuClick: () -> Unit,
     viewModel: ConversationViewModel = viewModel()
 ) {
@@ -701,6 +557,11 @@ fun ConversationListScreen(
     var searchQuery by
         remember {
             mutableStateOf("")
+        }
+
+    var menuOpen by
+        remember {
+            mutableStateOf(false)
         }
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -768,10 +629,90 @@ fun ConversationListScreen(
                         .RoundedCornerShape(28.dp)
             )
 
-            androidx.compose.material3.TextButton(
-                onClick = onMenuClick
-            ) {
-                Text("⋮")
+            androidx.compose.foundation.layout.Box {
+
+                androidx.compose.material3.IconButton(
+                    onClick = {
+                        menuOpen = true
+                    }
+                ) {
+                    Text(
+                        text = "⋮",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .headlineSmall
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = {
+                        menuOpen = false
+                    }
+                ) {
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Profile")
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onProfileClick()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Settings")
+                        },
+                        onClick = {
+                            menuOpen = false
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Privacy")
+                        },
+                        onClick = {
+                            menuOpen = false
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Notifications")
+                        },
+                        onClick = {
+                            menuOpen = false
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Help")
+                        },
+                        onClick = {
+                            menuOpen = false
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Logout")
+                        },
+                        onClick = {
+                            menuOpen = false
+
+                            SessionManager(context)
+                                .clearSession()
+
+                            (context as? MainActivity)
+                                ?.recreate()
+                        }
+                    )
+                }
             }
         }
 
@@ -1501,15 +1442,19 @@ fun ChatScreen(
                 modifier =
                     Modifier
                         .padding(horizontal = 4.dp)
+                        .size(40.dp)
+                        .clip(
+                            androidx.compose.foundation.shape
+                                .CircleShape
+                        )
                         .background(
                             color =
                                 MaterialTheme
                                     .colorScheme
-                                    .primaryContainer,
-                            shape =
-                                RoundedCornerShape(50)
-                        )
-                        .padding(10.dp)
+                                    .primaryContainer
+                        ),
+                contentAlignment =
+                    Alignment.Center
             ) {
                 Text(
                     text =
@@ -1573,13 +1518,29 @@ fun ChatScreen(
 
         } else {
 
+            val messageListState =
+                androidx.compose.foundation.lazy
+                    .rememberLazyListState()
+
+            androidx.compose.runtime.LaunchedEffect(
+                uiState.messages.size
+            ) {
+                if (uiState.messages.isNotEmpty()) {
+                    messageListState.animateScrollToItem(
+                        uiState.messages.lastIndex
+                    )
+                }
+            }
+
             LazyColumn(
+                state = messageListState,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(
-                            horizontal = 12.dp
+                            horizontal = 16.dp,
+                            vertical = 8.dp
                         ),
                 verticalArrangement =
                     Arrangement.spacedBy(6.dp)
@@ -2073,6 +2034,287 @@ fun NewContactScreen(
         ) {
 
             Text("Save")
+        }
+    }
+}
+
+@Composable
+fun ProfileScreen(
+    onBack: () -> Unit
+) {
+
+    val viewModel: ProfileViewModel =
+        viewModel()
+
+    val uiState by
+        viewModel.uiState.collectAsState()
+
+    var displayName by
+        remember {
+            mutableStateOf("")
+        }
+
+    var about by
+        remember {
+            mutableStateOf("")
+        }
+
+    androidx.compose.runtime.LaunchedEffect(
+        Unit
+    ) {
+        viewModel.loadProfile()
+    }
+
+    androidx.compose.runtime.LaunchedEffect(
+        uiState.user
+    ) {
+
+        uiState.user?.let { user ->
+
+            displayName =
+                user.display_name
+
+            about =
+                user.about ?: ""
+        }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+    ) {
+
+        Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            androidx.compose.material3.IconButton(
+                onClick = onBack
+            ) {
+
+                Icon(
+                    imageVector =
+                        Icons.Filled.ArrowBack,
+                    contentDescription =
+                        "Back"
+                )
+            }
+
+            Text(
+                text = "Profile",
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+                modifier =
+                    Modifier.padding(
+                        start = 4.dp
+                    )
+            )
+        }
+
+        if (uiState.loading) {
+
+            androidx.compose.foundation.layout.Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                CircularProgressIndicator()
+            }
+
+        } else if (uiState.user != null) {
+
+            val user =
+                uiState.user!!
+
+            Spacer(
+                modifier =
+                    Modifier.height(20.dp)
+            )
+
+            androidx.compose.foundation.layout.Box(
+                modifier =
+                    Modifier
+                        .size(88.dp)
+                        .clip(
+                            androidx.compose.foundation.shape
+                                .CircleShape
+                        )
+                        .background(
+                            MaterialTheme
+                                .colorScheme
+                                .primaryContainer
+                        )
+                        .align(
+                            Alignment.CenterHorizontally
+                        ),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                Text(
+                    text =
+                        displayName
+                            .firstOrNull()
+                            ?.uppercase()
+                            ?: "?",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .headlineMedium
+                )
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.height(24.dp)
+            )
+
+            OutlinedTextField(
+                value = displayName,
+                onValueChange = {
+                    displayName = it
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                label = {
+                    Text("Display name")
+                },
+                singleLine = true,
+                enabled =
+                    !uiState.saving
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            OutlinedTextField(
+                value = user.phone ?: "",
+                onValueChange = {},
+                modifier =
+                    Modifier.fillMaxWidth(),
+                label = {
+                    Text("Phone")
+                },
+                singleLine = true,
+                enabled = false
+            )
+
+            if (!user.email.isNullOrBlank()) {
+
+                Spacer(
+                    modifier =
+                        Modifier.height(12.dp)
+                )
+
+                OutlinedTextField(
+                    value =
+                        user.email ?: "",
+                    onValueChange = {},
+                    modifier =
+                        Modifier.fillMaxWidth(),
+                    label = {
+                        Text("Email")
+                    },
+                    singleLine = true,
+                    enabled = false
+                )
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            OutlinedTextField(
+                value = about,
+                onValueChange = {
+                    about = it
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                label = {
+                    Text("About")
+                },
+                minLines = 3,
+                maxLines = 4,
+                enabled =
+                    !uiState.saving
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(20.dp)
+            )
+
+            Button(
+                onClick = {
+                    viewModel.updateProfile(
+                        displayName =
+                            displayName,
+                        about =
+                            about
+                    )
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                enabled =
+                    !uiState.saving &&
+                    displayName.isNotBlank()
+            ) {
+
+                if (uiState.saving) {
+
+                    CircularProgressIndicator(
+                        modifier =
+                            Modifier.size(20.dp)
+                    )
+
+                } else {
+
+                    Text("Save")
+                }
+            }
+
+            if (
+                uiState.message.isNotBlank()
+            ) {
+
+                Spacer(
+                    modifier =
+                        Modifier.height(12.dp)
+                )
+
+                Text(
+                    text =
+                        uiState.message,
+                    color =
+                        if (
+                            uiState.message ==
+                            "Profile updated"
+                        ) {
+                            MaterialTheme
+                                .colorScheme
+                                .primary
+                        } else {
+                            MaterialTheme
+                                .colorScheme
+                                .error
+                        }
+                )
+            }
         }
     }
 }
