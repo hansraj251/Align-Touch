@@ -13,6 +13,16 @@ interface AuthApi {
         @Body request: LoginRequest
     ): LoginResponse
 
+    @POST("api/auth/request-otp")
+    suspend fun requestOtp(
+        @Body request: OtpRequest
+    ): OtpResponse
+
+    @POST("api/auth/verify-otp")
+    suspend fun verifyOtp(
+        @Body request: OtpVerifyRequest
+    ): OtpResponse
+
     @GET("api/conversations")
     suspend fun getConversations(
         @Header("Authorization")

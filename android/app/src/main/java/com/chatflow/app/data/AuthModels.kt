@@ -1,5 +1,38 @@
 package com.chatflow.app.data
 
+data class OtpRequest(
+
+    val identifier: String,
+
+    val identifierType: String
+)
+
+data class OtpVerifyRequest(
+
+    val identifier: String,
+
+    val purpose: String = "login",
+
+    val otp: String
+)
+
+data class OtpResponse(
+
+    val success: Boolean,
+
+    val message: String,
+
+    val expiresAt: String? = null,
+
+    val verified: Boolean? = null,
+
+    val token: String? = null,
+
+    val user: User? = null
+)
+
+
+
 data class LoginRequest(
     val phone: String? = null,
     val email: String? = null,

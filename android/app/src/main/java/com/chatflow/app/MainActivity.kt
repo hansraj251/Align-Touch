@@ -92,7 +92,7 @@ fun LoginScreen(
         mutableStateOf("")
     }
 
-    var password by remember {
+    var otp by remember {
         mutableStateOf("")
     }
 
@@ -136,55 +136,89 @@ fun LoginScreen(
                 Text("Phone or Email")
             },
 
-            singleLine = true
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(12.dp)
-        )
-
-        OutlinedTextField(
-            value = password,
-
-            onValueChange = {
-                password = it
-            },
-
-            label = {
-                Text("Password")
-            },
-
-            visualTransformation =
-                PasswordVisualTransformation(),
-
-            singleLine = true
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(16.dp)
-        )
-
-        Button(
-            onClick = {
-                viewModel.login(
-                    identifier = identifier,
-                    password = password
-                )
-            },
+            singleLine = true,
 
             enabled =
+                !uiState.otpSent &&
                 !uiState.loading
-        ) {
+        )
 
-            if (uiState.loading) {
+        if (!uiState.otpSent) {
 
-                CircularProgressIndicator()
+            Spacer(
+                modifier =
+                    Modifier.height(16.dp)
+            )
 
-            } else {
+            Button(
+                onClick = {
+                    viewModel.requestOtp(
+                        identifier =
+                            identifier
+                    )
+                },
 
-                Text("Login")
+                enabled =
+                    !uiState.otpLoading
+            ) {
+
+                if (uiState.otpLoading) {
+
+                    CircularProgressIndicator()
+
+                } else {
+
+                    Text("Send OTP")
+                }
+            }
+
+        } else {
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            OutlinedTextField(
+                value = otp,
+
+                onValueChange = {
+                    otp = it
+                },
+
+                label = {
+                    Text("Enter OTP")
+                },
+
+                singleLine = true
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(16.dp)
+            )
+
+            Button(
+                onClick = {
+                    viewModel.verifyOtp(
+                        identifier =
+                            identifier,
+                        otp = otp
+                    )
+                },
+
+                enabled =
+                    !uiState.loading
+            ) {
+
+                if (uiState.loading) {
+
+                    CircularProgressIndicator()
+
+                } else {
+
+                    Text("Verify OTP")
+                }
             }
         }
 
@@ -196,13 +230,18 @@ fun LoginScreen(
             )
 
             Text(
-                text = uiState.message,
+                text =
+                    uiState.message,
+
                 color =
                     if (uiState.success) {
+
                         MaterialTheme
                             .colorScheme
                             .primary
+
                     } else {
+
                         MaterialTheme
                             .colorScheme
                             .error
