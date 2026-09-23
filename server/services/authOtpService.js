@@ -4,9 +4,6 @@ const crypto =
 const authOtpRepository =
     require("../repositories/authOtpRepository");
 
-const emailService =
-    require("./emailService");
-
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
 
@@ -35,18 +32,16 @@ const authOtpService = {
     }) {
         if (!identifier) {
             throw new Error(
-                "Identifier is required"
+                "Mobile number is required"
             );
         }
 
         if (
-            ![
-                "phone",
-                "email"
-            ].includes(identifierType)
+            identifierType !==
+            "phone"
         ) {
             throw new Error(
-                "Invalid identifier type"
+                "Only mobile number OTP is supported"
             );
         }
 
@@ -84,29 +79,17 @@ const authOtpService = {
                 expiresAt
             });
 
-        if (
-            identifierType ===
-            "email"
-        ) {
-
-            await emailService.sendOtpEmail({
-                to: identifier,
-                otp
-            });
-
-        } else {
-
-            console.log(
-                "ChatFlow OTP:",
-                identifier,
-                otp
-            );
-        }
+        console.log(
+            "ChatFlow OTP:",
+            identifier,
+            otp
+        );
 
         return {
             id: record.id,
             identifier: record.identifier,
-            identifierType: record.identifier_type,
+            identifierType:
+                record.identifier_type,
             purpose: record.purpose,
             expiresAt: record.expires_at,
             otp

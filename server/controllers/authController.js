@@ -5,83 +5,6 @@ const authOtpService =
 
 const authController = {
 
-    async register(req, res) {
-
-        try {
-
-            const {
-                phone,
-                email,
-                password,
-                displayName
-            } = req.body;
-
-            const user =
-                await userService.register({
-                    phone,
-                    email,
-                    password,
-                    displayName
-                });
-
-            return res.status(201).json({
-                success: true,
-                message: "User registered successfully",
-                user
-            });
-
-        } catch (error) {
-
-            console.error(
-                "Register error:",
-                error
-            );
-
-            return res.status(400).json({
-                success: false,
-                message: error.message
-            });
-        }
-    },
-
-    async login(req, res) {
-
-        try {
-
-            const {
-                phone,
-                email,
-                password
-            } = req.body;
-
-            const result =
-                await userService.login({
-                    phone,
-                    email,
-                    password
-                });
-
-            return res.status(200).json({
-                success: true,
-                message: "Login successful",
-                token: result.token,
-                user: result.user
-            });
-
-        } catch (error) {
-
-            console.error(
-                "Login error:",
-                error
-            );
-
-            return res.status(401).json({
-                success: false,
-                message: error.message
-            });
-        }
-    },
-
     async requestOtp(req, res) {
         try {
             const {
@@ -106,7 +29,9 @@ const authController = {
                 success: true,
                 message: "OTP sent successfully",
                 expiresAt:
-                    result.expiresAt
+                    result.expiresAt,
+                otp:
+                    result.otp
             });
         } catch (error) {
             console.error(

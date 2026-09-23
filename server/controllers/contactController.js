@@ -46,6 +46,157 @@ const contactController = {
         }
     },
 
+    async updateContact(req, res) {
+
+        try {
+
+            const contact =
+                await contactService
+                    .updateContact(
+                        req.user.userId,
+                        req.params.id,
+                        req.body
+                    );
+
+            if (!contact) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message:
+                        "Contact not found"
+
+                });
+
+            }
+
+            return res.status(200).json({
+
+                success: true,
+
+                contact
+
+            });
+
+        } catch (error) {
+
+            console.error(
+
+                "Update contact error:",
+
+                error
+
+            );
+
+            if (
+
+                error.message ===
+
+                "Contact not found"
+
+            ) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message:
+                        error.message
+
+                });
+
+            }
+
+            if (
+
+                error.message ===
+
+                "First name is required"
+
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        error.message
+
+                });
+
+            }
+
+            if (
+
+                error.message ===
+
+                "Phone is required"
+
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        error.message
+
+                });
+
+            }
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Failed to update contact"
+
+            });
+
+        }
+
+    },
+
+    async deleteContact(req, res) {
+        try {
+            const contact =
+                await contactService
+                    .deleteContact(
+                        req.user.userId,
+                        req.params.id
+                    );
+
+            return res.status(200).json({
+                success: true,
+                contact
+            });
+        } catch (error) {
+            console.error(
+                "Delete contact error:",
+                error
+            );
+
+            if (
+                error.message ===
+                "Contact not found"
+            ) {
+                return res.status(404).json({
+                    success: false,
+                    message:
+                        error.message
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message:
+                    "Failed to delete contact"
+            });
+        }
+    },
+
     async listContacts(req, res) {
 
         try {

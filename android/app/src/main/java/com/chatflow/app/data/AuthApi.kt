@@ -1,18 +1,16 @@
 package com.chatflow.app.data
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
+
+import retrofit2.http.PUT
 import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface AuthApi {
-
-    @POST("api/auth/login")
-    suspend fun login(
-        @Body request: LoginRequest
-    ): LoginResponse
 
     @POST("api/auth/request-otp")
     suspend fun requestOtp(
@@ -56,6 +54,13 @@ interface AuthApi {
         authorization: String
     ): CreateDirectConversationResponse
 
+    @POST("api/conversations/group")
+    suspend fun createGroupConversation(
+        @Body request: CreateGroupConversationRequest,
+        @Header("Authorization")
+        authorization: String
+    ): CreateGroupConversationResponse
+
     @GET("api/messages/{conversationId}")
     suspend fun getMessages(
         @Path("conversationId")
@@ -86,11 +91,80 @@ interface AuthApi {
         authorization: String
     ): CreateContactResponse
 
+    @PUT("api/contacts/{id}")
+    suspend fun updateContact(
+        @Path("id")
+        contactId: String,
+        @Body request: UpdateContactRequest,
+        @Header("Authorization")
+        authorization: String
+    ): CreateContactResponse
+
+    @DELETE("api/contacts/{id}")
+    suspend fun deleteContact(
+        @Path("id")
+        contactId: String,
+        @Header("Authorization")
+        authorization: String
+    ): CreateContactResponse
+
     @POST("api/contacts")
     suspend fun createContact(
         @Body request: CreateContactRequest,
         @Header("Authorization")
         authorization: String
     ): CreateContactResponse
+
+
+@GET("api/conversations/{id}/group")
+suspend fun getGroupDetails(
+
+    @Path("id")
+    conversationId: String,
+
+    @Header("Authorization")
+    authorization: String
+
+): GroupDetailsResponse
+
+@GET("api/conversations/{id}/group/members")
+suspend fun getGroupMembers(
+
+    @Path("id")
+    conversationId: String,
+
+    @Header("Authorization")
+    authorization: String
+
+): GroupMembersResponse
+
+
+
+    @PUT("api/conversations/{id}/group")
+    suspend fun updateGroup(
+        @Path("id") conversationId: String,
+        @Body request: UpdateGroupRequest,
+        @Header("Authorization") authorization: String
+    ): GroupDetailsResponse
+
+    @POST("api/conversations/{id}/group/members")
+    suspend fun addGroupMember(
+        @Path("id") conversationId: String,
+        @Body request: AddGroupMemberRequest,
+        @Header("Authorization") authorization: String
+    ): AddGroupMemberResponse
+
+    @DELETE("api/conversations/{id}/group/members/{userId}")
+    suspend fun removeGroupMember(
+        @Path("id") conversationId: String,
+        @Path("userId") userId: String,
+        @Header("Authorization") authorization: String
+    ): DeleteGroupMemberResponse
+
+    @DELETE("api/conversations/{id}/group")
+    suspend fun deleteGroup(
+        @Path("id") conversationId: String,
+        @Header("Authorization") authorization: String
+    ): DeleteGroupResponse
 
 }

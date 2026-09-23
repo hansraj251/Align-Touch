@@ -6,7 +6,6 @@ data class Contact(
     val linked_user_id: String?,
     val first_name: String,
     val last_name: String?,
-    val username: String?,
     val country_code: String,
     val phone: String,
     val created_at: String?,
@@ -21,7 +20,13 @@ data class ContactListResponse(
 data class CreateContactRequest(
     val firstName: String,
     val lastName: String?,
-    val username: String?,
+    val countryCode: String,
+    val phone: String
+)
+
+data class UpdateContactRequest(
+    val firstName: String,
+    val lastName: String?,
     val countryCode: String,
     val phone: String
 )

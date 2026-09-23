@@ -22,6 +22,18 @@ router.get(
     contactController.listContacts
 );
 
+router.put(
+    "/:id",
+    authMiddleware,
+    contactController.updateContact
+);
+
+router.delete(
+    "/:id",
+    authMiddleware,
+    contactController.deleteContact
+);
+
 router.get(
     "/:id",
     authMiddleware,

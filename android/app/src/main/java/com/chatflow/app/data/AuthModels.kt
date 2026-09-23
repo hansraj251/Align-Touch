@@ -23,6 +23,7 @@ data class OtpResponse(
     val message: String,
 
     val expiresAt: String? = null,
+    val otp: String? = null,
 
     val verified: Boolean? = null,
 
@@ -33,23 +34,9 @@ data class OtpResponse(
 
 
 
-data class LoginRequest(
-    val phone: String? = null,
-    val email: String? = null,
-    val password: String
-)
-
-data class LoginResponse(
-    val success: Boolean,
-    val message: String,
-    val token: String?,
-    val user: User?
-)
-
 data class User(
     val id: String,
     val phone: String?,
-    val email: String?,
     val display_name: String,
     val avatar_url: String?,
     val about: String?,
@@ -81,3 +68,20 @@ data class CreateDirectConversationResponse(
     val success: Boolean,
     val conversation: Conversation
 )
+
+data class CreateGroupConversationRequest(
+
+    val title: String,
+
+    val memberUserIds: List<String>
+
+)
+
+data class CreateGroupConversationResponse(
+
+    val success: Boolean,
+
+    val conversation: Conversation
+
+)
+

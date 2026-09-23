@@ -217,5 +217,84 @@ class NewChatViewModel : ViewModel() {
 
     }
 
+    fun createGroupConversation(
+
+        token: String,
+
+        title: String,
+
+        memberUserIds: List<String>,
+
+        onSuccess:
+            (com.chatflow.app.data.Conversation) -> Unit
+
+    ) {
+
+        _uiState.value =
+
+            _uiState.value.copy(
+
+                creating = true,
+
+                message = ""
+
+            )
+
+        viewModelScope.launch {
+
+            try {
+
+                val response =
+
+                    conversationRepository
+
+                        .createGroupConversation(
+
+                            token = token,
+
+                            title = title,
+
+                            memberUserIds =
+
+                                memberUserIds
+
+                        )
+
+                _uiState.value =
+
+                    _uiState.value.copy(
+
+                        creating = false
+
+                    )
+
+                onSuccess(
+
+                    response.conversation
+
+                )
+
+            } catch (error: Exception) {
+
+                _uiState.value =
+
+                    _uiState.value.copy(
+
+                        creating = false,
+
+                        message =
+
+                            error.message
+
+                                ?: "Failed to create group"
+
+                    )
+
+            }
+
+        }
+
+    }
+
 
 }

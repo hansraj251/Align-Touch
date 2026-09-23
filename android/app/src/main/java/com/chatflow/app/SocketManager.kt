@@ -109,6 +109,10 @@ class SocketManager {
                 args.firstOrNull()
 
             if (data is JSONObject) {
+                Log.d(
+                    "ChatFlowSocket",
+                    "new_message received: $data"
+                )
                 onMessage(data)
             }
         }

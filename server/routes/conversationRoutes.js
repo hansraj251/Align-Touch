@@ -16,6 +16,43 @@ router.get(
     conversationController.getConversations
 );
 
+router.get(
+    "/:id/group",
+    authMiddleware,
+    conversationController.getGroupDetails
+);
+
+router.put(
+    "/:id/group",
+    authMiddleware,
+    conversationController.updateGroup
+);
+
+router.delete(
+    "/:id/group/members/:userId",
+    authMiddleware,
+    conversationController.removeGroupMember
+);
+
+router.delete(
+    "/:id/group",
+    authMiddleware,
+    conversationController.deleteGroup
+);
+
+
+router.get(
+    "/:id/group/members",
+    authMiddleware,
+    conversationController.getGroupMembers
+);
+
+router.post(
+    "/group",
+    authMiddleware,
+    conversationController.createGroupConversation
+);
+
 router.post(
     "/direct",
     authMiddleware,

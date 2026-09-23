@@ -63,6 +63,38 @@ class ConversationViewModel(
                         token
                     )
 
+                android.util.Log.d(
+                    "ChatFlowConversations",
+                    "API conversations count: ${response.conversations.size}"
+                )
+
+                android.util.Log.d(
+                    "ChatFlowConversations",
+                    "Groups: ${
+                        response.conversations.count {
+                            it.type == "group"
+                        }
+                    }"
+                )
+
+                android.util.Log.d(
+                    "ChatFlowConversations",
+                    "Conversation types: ${
+                        response.conversations.map {
+                            "${it.id}:${it.type}:${it.other_user_display_name}"
+                        }
+                    }"
+                )
+
+                android.util.Log.d(
+                    "ChatFlowConversations",
+                    "Contact IDs: ${
+                        response.conversations.map {
+                            "${it.id}:${it.contact_id}"
+                        }
+                    }"
+                )
+
                 _uiState.value =
                     ConversationUiState(
                         conversations =

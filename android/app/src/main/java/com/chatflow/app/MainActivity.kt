@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import com.chatflow.app.data.Contact
 import com.chatflow.app.data.Conversation
 
 import android.util.Log
@@ -64,6 +65,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Circle
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -183,7 +185,7 @@ fun LoginScreen(
             },
 
             label = {
-                Text("Email")
+                Text("Mobile Number")
             },
 
             singleLine = true,
@@ -228,6 +230,22 @@ fun LoginScreen(
                 modifier =
                     Modifier.height(12.dp)
             )
+
+            uiState.otpResponse?.otp?.let { generatedOtp ->
+                Text(
+                    text =
+                        "Development OTP: $generatedOtp",
+                    style =
+                        MaterialTheme
+                            .typography
+                            .titleMedium
+                )
+
+                Spacer(
+                    modifier =
+                        Modifier.height(12.dp)
+                )
+            }
 
             OutlinedTextField(
                 value = otp,
@@ -325,16 +343,46 @@ fun ChatFlowApp() {
             mutableStateOf(false)
         }
 
+    var showEditContact by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var showAddContact by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var showGroupInfo by
+        remember {
+            mutableStateOf(false)
+        }
+
     val context =
         androidx.compose.ui.platform.LocalContext.current
 
     androidx.activity.compose.BackHandler(
         enabled =
+            showEditContact ||
+            showAddContact ||
+            showGroupInfo ||
             showProfile ||
             showNewChat ||
             selectedConversation != null
     ) {
         when {
+            showEditContact -> {
+                showEditContact = false
+            }
+
+            showAddContact -> {
+                showAddContact = false
+            }
+
+            showGroupInfo -> {
+                showGroupInfo = false
+            }
+
             showProfile -> {
                 showProfile = false
             }
@@ -379,7 +427,110 @@ fun ChatFlowApp() {
                         .weight(1f)
             ) {
 
-                if (showProfile) {
+                if (showAddContact) {
+                    AddContactScreen(
+                        contactName =
+                            selectedConversation
+                                ?.other_user_display_name
+                                .orEmpty(),
+                        contactPhone =
+                            selectedConversation
+                                ?.other_user_phone
+                                .orEmpty(),
+                        onBack = {
+                            showAddContact = false
+                        },
+                        onSaved = { contact ->
+                            selectedConversation =
+                                selectedConversation?.copy(
+                                    contact_id =
+                                        contact.id,
+                                    other_user_display_name =
+                                        listOf(
+                                            contact.first_name,
+                                            contact.last_name
+                                        )
+                                            .filter {
+                                                !it.isNullOrBlank()
+                                            }
+                                            .joinToString(" "),
+                                    other_user_phone =
+                                        listOf(
+                                            contact.country_code,
+                                            contact.phone
+                                        )
+                                            .filter {
+                                                !it.isNullOrBlank()
+                                            }
+                                            .joinToString(" ")
+                                )
+
+                            showAddContact = false
+                        }
+                    )
+                } else if (showEditContact) {
+
+                    val contactId =
+                        selectedConversation
+                            ?.contact_id
+
+                    if (!contactId.isNullOrBlank()) {
+
+                        EditContactScreen(
+                            contactId = contactId,
+                            onBack = {
+                                showEditContact = false
+                            },
+                            onSaved = { updatedContact ->
+
+                                selectedConversation =
+                                    selectedConversation?.copy(
+                                        other_user_display_name =
+                                            listOf(
+                                                updatedContact.first_name,
+                                                updatedContact.last_name
+                                            )
+                                                .filter {
+                                                    !it.isNullOrBlank()
+                                                }
+                                                .joinToString(" "),
+                                        other_user_phone =
+                                            listOf(
+                                                updatedContact.country_code,
+                                                updatedContact.phone
+                                            )
+                                                .filter {
+                                                    !it.isNullOrBlank()
+                                                }
+                                                .joinToString(" ")
+                                    )
+
+                                showEditContact = false
+                            }
+                        )
+
+                    } else {
+
+                        showEditContact = false
+
+                    }
+
+                } else if (showGroupInfo) {
+
+                    GroupInfoScreen(
+                        conversationId =
+                            selectedConversation!!.id,
+                        onBack = {
+                            showGroupInfo = false
+                        }
+                    ,
+                        onDeleted = {
+                            showGroupInfo = false
+                            selectedConversation = null
+                        }
+)
+
+                } else if (showProfile) {
 
                     ProfileScreen(
                         onBack = {
@@ -429,6 +580,28 @@ fun ChatFlowApp() {
                             contactPhone =
                                 selectedConversation!!
                                     .other_user_phone,
+                            contactId =
+                                selectedConversation!!
+                                    .contact_id,
+                            conversationType =
+                                selectedConversation!!
+                                    .type,
+                            onContactClick = {
+                                if (
+                                    selectedConversation!!
+                                        .type == "group"
+                                ) {
+                                    showGroupInfo = true
+                                } else if (
+                                    !selectedConversation!!
+                                        .contact_id
+                                        .isNullOrBlank()
+                                ) {
+                                    showEditContact = true
+                                } else {
+                                    showAddContact = true
+                                }
+                            },
                             onBack = {
                                 selectedConversation = null
                             }
@@ -611,11 +784,8 @@ fun ConversationListScreen(
                 (
                     conversation.other_user_phone
                         ?: ""
-                ).contains(query) ||
-                (
-                    conversation.other_user_email
-                        ?: ""
                 ).contains(query)
+
         }
 
     Column(
@@ -977,8 +1147,8 @@ fun ConversationListScreen(
                                     text =
                                         conversation
                                             .other_user_phone
-                                            ?: conversation
-                                                .other_user_email
+
+
                                             ?: "",
                                     style =
                                         MaterialTheme
@@ -1047,6 +1217,48 @@ fun NewGroupScreen(
 
     val uiState by
         viewModel.uiState.collectAsState()
+
+    val contactRepository =
+        remember {
+            com.chatflow.app.data.ContactRepository()
+        }
+
+    var contacts by
+        remember {
+            mutableStateOf<
+                List<com.chatflow.app.data.Contact>
+            >(emptyList())
+        }
+
+    LaunchedEffect(token) {
+        if (!token.isNullOrBlank()) {
+            try {
+                contacts =
+                    contactRepository
+                        .getContacts(token)
+                        .contacts
+            } catch (
+                error: Exception
+            ) {
+                contacts =
+                    emptyList()
+            }
+        }
+    }
+
+    val contactUserIds =
+        contacts
+            .mapNotNull {
+                it.linked_user_id
+            }
+            .toSet()
+
+    val contactUsers =
+        users.filter { user ->
+            contactUserIds.contains(
+                user.id
+            )
+        }
 
     var groupTitle by
         remember {
@@ -1163,7 +1375,7 @@ fun NewGroupScreen(
                 Modifier.height(8.dp)
         )
 
-        if (users.isEmpty()) {
+        if (contactUsers.isEmpty()) {
 
             Box(
                 modifier =
@@ -1197,7 +1409,7 @@ fun NewGroupScreen(
             ) {
 
                 items(
-                    users,
+                    contactUsers,
                     key = {
                         it.id
                     }
@@ -1259,10 +1471,25 @@ fun NewGroupScreen(
 
                         )
 
+                        val contact =
+                            contacts.firstOrNull {
+                                it.linked_user_id == user.id
+                            }
+
+                        val contactName =
+                            listOfNotNull(
+                                contact?.first_name,
+                                contact?.last_name
+                            )
+                                .joinToString(" ")
+                                .ifBlank {
+                                    user.display_name
+                                }
+
                         Text(
 
                             text =
-                                user.display_name,
+                                contactName,
 
                             modifier =
                                 Modifier.padding(
@@ -1437,7 +1664,7 @@ fun NewChatScreen(
             onBack = {
                 showNewContact = false
             },
-            onSave = { firstName, lastName, username, countryCode, phone ->
+            onSave = { firstName, lastName, countryCode, phone ->
 
                 if (!token.isNullOrBlank()) {
 
@@ -1448,10 +1675,6 @@ fun NewChatScreen(
                                 firstName = firstName,
                                 lastName =
                                     lastName.ifBlank {
-                                        null
-                                    },
-                                username =
-                                    username.ifBlank {
                                         null
                                     },
                                 countryCode =
@@ -1780,6 +2003,9 @@ fun ChatScreen(
     conversationId: String,
     contactName: String,
     contactPhone: String?,
+    contactId: String?,
+    conversationType: String,
+    onContactClick: () -> Unit,
     onBack: () -> Unit,
     viewModel: MessageViewModel =
         viewModel()
@@ -1882,6 +2108,11 @@ fun ChatScreen(
                     Modifier
                         .weight(1f)
                         .padding(start = 10.dp)
+                        .clickable(
+                            enabled = true
+                        ) {
+                            onContactClick()
+                        }
             ) {
                 Text(
                     text = contactName,
@@ -1930,13 +2161,37 @@ fun ChatScreen(
                 androidx.compose.foundation.lazy
                     .rememberLazyListState()
 
+            var initialMessageCount by
+                remember(conversationId) {
+                    mutableStateOf<Int?>(null)
+                }
+
             androidx.compose.runtime.LaunchedEffect(
+                uiState.loading,
                 uiState.messages.size
             ) {
-                if (uiState.messages.isNotEmpty()) {
-                    messageListState.scrollToItem(
-                        uiState.messages.lastIndex
-                    )
+                if (
+                    !uiState.loading &&
+                    uiState.messages.isNotEmpty()
+                ) {
+                    if (initialMessageCount == null) {
+                        initialMessageCount =
+                            uiState.messages.size
+
+                        messageListState.scrollToItem(
+                            uiState.messages.lastIndex
+                        )
+                    } else if (
+                        uiState.messages.size >
+                            initialMessageCount!!
+                    ) {
+                        initialMessageCount =
+                            uiState.messages.size
+
+                        messageListState.animateScrollToItem(
+                            uiState.messages.lastIndex
+                        )
+                    }
                 }
             }
 
@@ -2257,22 +2512,15 @@ fun NewContactScreen(
         String,
         String,
         String,
-        String,
         String
     ) -> Unit
 ) {
-
     var firstName by
         remember {
             mutableStateOf("")
         }
 
     var lastName by
-        remember {
-            mutableStateOf("")
-        }
-
-    var username by
         remember {
             mutableStateOf("")
         }
@@ -2293,18 +2541,15 @@ fun NewContactScreen(
                 .fillMaxSize()
                 .padding(16.dp)
     ) {
-
         Row(
             modifier =
                 Modifier.fillMaxWidth(),
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
-
             androidx.compose.material3.IconButton(
                 onClick = onBack
             ) {
-
                 Icon(
                     imageVector =
                         Icons.Filled.ArrowBack,
@@ -2367,31 +2612,12 @@ fun NewContactScreen(
                 Modifier.height(12.dp)
         )
 
-        OutlinedTextField(
-            value = username,
-            onValueChange = {
-                username = it
-            },
-            modifier =
-                Modifier.fillMaxWidth(),
-            label = {
-                Text("Username")
-            },
-            singleLine = true
-        )
-
-        Spacer(
-            modifier =
-                Modifier.height(12.dp)
-        )
-
         Row(
             modifier =
                 Modifier.fillMaxWidth(),
             horizontalArrangement =
                 Arrangement.spacedBy(8.dp)
         ) {
-
             OutlinedTextField(
                 value = countryCode,
                 onValueChange = {
@@ -2429,7 +2655,6 @@ fun NewContactScreen(
                 onSave(
                     firstName,
                     lastName,
-                    username,
                     countryCode,
                     phone
                 )
@@ -2440,9 +2665,609 @@ fun NewContactScreen(
                 firstName.isNotBlank() &&
                 phone.isNotBlank()
         ) {
-
             Text("Save")
         }
+    }
+}
+
+@Composable
+fun AddContactScreen(
+    contactName: String,
+    contactPhone: String,
+    onBack: () -> Unit,
+    onSaved: (Contact) -> Unit,
+    viewModel: ContactEditViewModel =
+        viewModel()
+) {
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    val sessionManager =
+        SessionManager(context)
+
+    val token =
+        sessionManager.getToken()
+
+    val uiState by
+        viewModel.uiState.collectAsState()
+
+    var firstName by
+        remember {
+            mutableStateOf("")
+        }
+
+    var lastName by
+        remember {
+            mutableStateOf("")
+        }
+
+    val canSave =
+        firstName.trim().isNotBlank() &&
+        contactPhone.trim().isNotBlank() &&
+        !uiState.saving
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+    ) {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.IconButton(
+                onClick = onBack
+            ) {
+                Icon(
+                    imageVector =
+                        androidx.compose.material.icons
+                            .Icons
+                            .Filled
+                            .ArrowBack,
+                    contentDescription =
+                        "Back"
+                )
+            }
+
+            Text(
+                text = "Add to Contact",
+                style =
+                    MaterialTheme
+                        .typography
+                        .titleLarge
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(24.dp)
+        )
+
+        Text(
+            text =
+                contactName.ifBlank {
+                    "Chat Contact"
+                },
+            style =
+                MaterialTheme
+                    .typography
+                    .titleMedium
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(16.dp)
+        )
+
+        OutlinedTextField(
+            value = contactPhone,
+            onValueChange = {},
+            modifier =
+                Modifier.fillMaxWidth(),
+            label = {
+                Text("Mobile Number")
+            },
+            enabled = false,
+            singleLine = true
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        OutlinedTextField(
+            value = firstName,
+            onValueChange = {
+                firstName = it
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
+            label = {
+                Text("First Name")
+            },
+            singleLine = true
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = {
+                lastName = it
+            },
+            modifier =
+                Modifier.fillMaxWidth(),
+            label = {
+                Text("Last Name")
+            },
+            singleLine = true
+        )
+
+        if (
+            uiState.message.isNotBlank()
+        ) {
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            Text(
+                text = uiState.message,
+                color =
+                    MaterialTheme
+                        .colorScheme
+                        .error
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(24.dp)
+        )
+
+        Button(
+            onClick = {
+                val normalizedPhone =
+                    contactPhone.trim()
+
+                val parts =
+                    normalizedPhone.split(
+                        Regex("\\s+"),
+                        limit = 2
+                    )
+
+                val hasCountryCode =
+                    parts.size == 2 &&
+                    parts[0].startsWith("+")
+
+                val countryCode =
+                    if (hasCountryCode) {
+                        parts[0]
+                    } else {
+                        "+91"
+                    }
+
+                val phone =
+                    if (hasCountryCode) {
+                        parts[1]
+                    } else {
+                        normalizedPhone
+                    }
+
+                viewModel.createContact(
+                    token = token.orEmpty(),
+                    request =
+                        com.chatflow.app.data
+                            .CreateContactRequest(
+                                firstName =
+                                    firstName.trim(),
+                                lastName =
+                                    lastName
+                                        .trim()
+                                        .ifBlank {
+                                            null
+                                        },
+                                countryCode =
+                                    countryCode,
+                                phone =
+                                    phone
+                            ),
+                    onSuccess = onSaved
+                )
+            },
+            enabled = canSave,
+            modifier =
+                Modifier.fillMaxWidth()
+        ) {
+            if (uiState.saving) {
+                CircularProgressIndicator(
+                    modifier =
+                        Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Save Contact")
+            }
+        }
+    }
+}
+
+@Composable
+fun EditContactScreen(
+    contactId: String,
+    onBack: () -> Unit,
+    onSaved: (Contact) -> Unit,
+    viewModel: ContactEditViewModel =
+        viewModel()
+) {
+
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    val sessionManager =
+        SessionManager(context)
+
+    val token =
+        sessionManager.getToken()
+
+    val uiState by
+        viewModel.uiState.collectAsState()
+
+    var firstName by
+        remember {
+            mutableStateOf("")
+        }
+
+    var lastName by
+        remember {
+            mutableStateOf("")
+        }
+
+    var countryCode by
+        remember {
+            mutableStateOf("+91")
+        }
+
+    var phone by
+        remember {
+            mutableStateOf("")
+        }
+
+    var initialized by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var showDeleteDialog by
+        remember {
+            mutableStateOf(false)
+        }
+
+    androidx.compose.runtime.LaunchedEffect(
+        token,
+        contactId
+    ) {
+
+        if (
+            !token.isNullOrBlank() &&
+            contactId.isNotBlank()
+        ) {
+
+            viewModel.loadContact(
+                token = token,
+                contactId = contactId
+            )
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(
+        uiState.contact
+    ) {
+
+        uiState.contact?.let { contact ->
+
+            if (!initialized) {
+
+                firstName =
+                    contact.first_name
+
+                lastName =
+                    contact.last_name ?: ""
+
+                countryCode =
+                    contact.country_code
+
+                phone =
+                    contact.phone
+
+                initialized = true
+            }
+        }
+    }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(16.dp)
+    ) {
+
+        Row(
+            modifier =
+                Modifier.fillMaxWidth(),
+            verticalAlignment =
+                Alignment.CenterVertically
+        ) {
+
+            androidx.compose.material3.IconButton(
+                onClick = onBack
+            ) {
+
+                Icon(
+                    imageVector =
+                        Icons.Filled.ArrowBack,
+                    contentDescription =
+                        "Back"
+                )
+            }
+
+            Text(
+                text = "Edit Contact",
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+                modifier =
+                    Modifier.padding(
+                        start = 4.dp
+                    )
+            )
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(20.dp)
+        )
+
+        if (uiState.loading) {
+
+            androidx.compose.foundation.layout.Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                androidx.compose.material3.CircularProgressIndicator()
+            }
+
+        } else {
+
+            OutlinedTextField(
+                value = firstName,
+                onValueChange = {
+                    firstName = it
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                label = {
+                    Text("First name")
+                },
+                singleLine = true
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            OutlinedTextField(
+                value = lastName,
+                onValueChange = {
+                    lastName = it
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                label = {
+                    Text("Last name")
+                },
+                singleLine = true
+            )
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.spacedBy(8.dp)
+            ) {
+
+                OutlinedTextField(
+                    value = countryCode,
+                    onValueChange = {
+                        countryCode = it
+                    },
+                    modifier =
+                        Modifier.width(100.dp),
+                    label = {
+                        Text("Code")
+                    },
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = {
+                        phone = it
+                    },
+                    modifier =
+                        Modifier.weight(1f),
+                    label = {
+                        Text("Phone")
+                    },
+                    readOnly = true,
+                    singleLine = true
+                )
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.height(24.dp)
+            )
+
+            if (
+                uiState.message.isNotBlank()
+            ) {
+
+                Text(
+                    text = uiState.message,
+                    modifier =
+                        Modifier.padding(
+                            bottom = 12.dp
+                        )
+                )
+            }
+
+            Button(
+                onClick = {
+
+                    if (!token.isNullOrBlank()) {
+
+                        viewModel.updateContact(
+                            token = token,
+                            contactId = contactId,
+                            request =
+                                com.chatflow.app.data
+                                    .UpdateContactRequest(
+                                        firstName =
+                                            firstName.trim(),
+                                        lastName =
+                                            lastName
+                                                .trim()
+                                                .ifBlank {
+                                                    null
+                                                },
+                                        countryCode =
+                                            countryCode.trim(),
+                                        phone =
+                                            phone.trim()
+                                    ),
+                            onSuccess = { updatedContact ->
+                                onSaved(updatedContact)
+                            }
+                        )
+                    }
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                enabled =
+                    firstName.isNotBlank() &&
+                    phone.isNotBlank() &&
+                    !uiState.saving
+            ) {
+
+                if (uiState.saving) {
+
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier =
+                            Modifier.size(20.dp)
+                    )
+
+                } else {
+
+                    Text("Save")
+                }
+            }
+
+            Spacer(
+                modifier =
+                    Modifier.height(12.dp)
+            )
+
+            androidx.compose.material3.OutlinedButton(
+                onClick = {
+                    showDeleteDialog = true
+                },
+                modifier =
+                    Modifier.fillMaxWidth(),
+                enabled =
+                    !uiState.saving &&
+                    !uiState.deleting
+            ) {
+                if (uiState.deleting) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier =
+                            Modifier.size(20.dp)
+                    )
+                } else {
+                    Text("Delete Contact")
+                }
+            }
+        }
+    }
+
+    if (showDeleteDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                if (!uiState.deleting) {
+                    showDeleteDialog = false
+                }
+            },
+            title = {
+                Text("Delete Contact?")
+            },
+            text = {
+                Text(
+                    "Are you sure you want to delete this contact?"
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        if (!token.isNullOrBlank()) {
+                            viewModel.deleteContact(
+                                token = token,
+                                contactId = contactId,
+                                onSuccess = {
+                                    showDeleteDialog = false
+                                    onBack()
+                                }
+                            )
+                        }
+                    },
+                    enabled =
+                        !uiState.deleting
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                    },
+                    enabled =
+                        !uiState.deleting
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -2619,27 +3444,6 @@ fun ProfileScreen(
                 singleLine = true,
                 enabled = false
             )
-
-            if (!user.email.isNullOrBlank()) {
-
-                Spacer(
-                    modifier =
-                        Modifier.height(12.dp)
-                )
-
-                OutlinedTextField(
-                    value =
-                        user.email ?: "",
-                    onValueChange = {},
-                    modifier =
-                        Modifier.fillMaxWidth(),
-                    label = {
-                        Text("Email")
-                    },
-                    singleLine = true,
-                    enabled = false
-                )
-            }
 
             Spacer(
                 modifier =

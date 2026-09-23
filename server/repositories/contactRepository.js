@@ -92,6 +92,76 @@ const contactRepository = {
         return result.rows[0] || null;
     },
 
+    async updateContact({
+        ownerUserId,
+        contactId,
+        firstName,
+        lastName,
+        username,
+        countryCode,
+        phone
+    }) {
+
+        const result =
+            await pool.query(
+                `
+                UPDATE contacts
+                SET
+                    first_name = $1,
+                    last_name = $2,
+                    username = $3,
+                    country_code = $4,
+                    phone = $5,
+                    updated_at = NOW()
+                WHERE id = $6
+                  AND owner_user_id = $7
+                RETURNING
+                    id,
+                    owner_user_id,
+                    linked_user_id,
+                    first_name,
+                    last_name,
+                    username,
+                    country_code,
+                    phone,
+                    created_at,
+                    updated_at
+                `,
+                [
+                    firstName,
+                    lastName,
+                    username,
+                    countryCode,
+                    phone,
+                    contactId,
+                    ownerUserId
+                ]
+            );
+
+        return result.rows[0] || null;
+    },
+
+    async deleteContact(
+        ownerUserId,
+        contactId
+    ) {
+        const result =
+            await pool.query(
+                `
+                DELETE FROM contacts
+                WHERE id = $1
+                  AND owner_user_id = $2
+                RETURNING id
+                `,
+                [
+                    contactId,
+                    ownerUserId
+                ]
+            );
+
+        return result.rows[0] || null;
+    },
+
     async listByOwner(
         ownerUserId
     ) {

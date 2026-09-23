@@ -24,6 +24,30 @@ class ContactRepository {
         )
     }
 
+    suspend fun updateContact(
+        token: String,
+        contactId: String,
+        request: UpdateContactRequest
+    ): CreateContactResponse {
+
+        return ApiClient.authApi.updateContact(
+            contactId = contactId,
+            request = request,
+            authorization = "Bearer $token"
+        )
+    }
+
+    suspend fun deleteContact(
+        token: String,
+        contactId: String
+    ): CreateContactResponse {
+
+        return ApiClient.authApi.deleteContact(
+            contactId = contactId,
+            authorization = "Bearer $token"
+        )
+    }
+
     suspend fun createContact(
         token: String,
         request: CreateContactRequest

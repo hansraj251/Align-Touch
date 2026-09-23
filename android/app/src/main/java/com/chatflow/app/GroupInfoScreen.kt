@@ -32,12 +32,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextField
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chatflow.app.data.GroupMember
+import com.chatflow.app.data.Contact
+import com.chatflow.app.data.ContactRepository
 
 @Composable
 fun GroupInfoScreen(
@@ -57,6 +61,11 @@ viewModel: GroupInfoViewModel =
 
     val token =
         sessionManager.getToken()
+
+    val contactRepository =
+        remember {
+            ContactRepository()
+        }
 
     val uiState by
         viewModel.uiState.collectAsState()
@@ -81,6 +90,38 @@ viewModel: GroupInfoViewModel =
             mutableStateOf(false)
         }
 
+    var memberToRemove by
+        remember {
+            mutableStateOf<GroupMember?>(null)
+        }
+
+    var showRemoveMemberDialog by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var showAddMemberDialog by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var contactsLoading by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var contacts by
+        remember {
+            mutableStateOf<List<Contact>>(
+                emptyList()
+            )
+        }
+
+    var contactSearch by
+        remember {
+            mutableStateOf("")
+        }
+
     LaunchedEffect(
         conversationId
     ) {
@@ -90,6 +131,34 @@ viewModel: GroupInfoViewModel =
                 conversationId =
                     conversationId
             )
+        }
+    }
+
+    LaunchedEffect(
+        showAddMemberDialog
+    ) {
+        if (
+            showAddMemberDialog &&
+            !token.isNullOrBlank()
+        ) {
+            contactsLoading = true
+
+            try {
+                contacts =
+                    contactRepository
+                        .getContacts(
+                            token
+                        )
+                        .contacts
+            } catch (
+                error: Exception
+            ) {
+                contacts =
+                    emptyList()
+            } finally {
+                contactsLoading =
+                    false
+            }
         }
     }
 
@@ -343,6 +412,35 @@ viewModel: GroupInfoViewModel =
                     }
                 }
 
+                if (
+                    group.current_user_role ==
+                        "admin"
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (
+                                !uiState.actionLoading &&
+                                !contactsLoading
+                            ) {
+                                showAddMemberDialog =
+                                    true
+                                contactSearch = ""
+                            }
+                        },
+                        enabled =
+                            !uiState.actionLoading &&
+                                !contactsLoading,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 20.dp
+                                )
+                    ) {
+                        Text("Add Member")
+                    }
+                }
+
                 HorizontalDivider()
 
                 LazyColumn(
@@ -375,12 +473,310 @@ viewModel: GroupInfoViewModel =
                     ) { member ->
 
                         GroupMemberRow(
-                            member = member
+                            member = member,
+                            canRemove =
+                                group.current_user_role ==
+                                    "admin" &&
+                                    member.role != "admin",
+                            onRemove = {
+                                memberToRemove =
+                                    member
+                                showRemoveMemberDialog =
+                                    true
+                            }
                         )
                     }
                 }
             }
         }
+    }
+
+    if (showAddMemberDialog) {
+
+        val existingMemberIds =
+            uiState.members
+                .map { it.user_id }
+                .toSet()
+
+        val filteredContacts =
+            contacts.filter { contact ->
+                contact.linked_user_id != null &&
+                    !existingMemberIds.contains(
+                        contact.linked_user_id
+                    ) &&
+                    (
+                        contact.first_name
+                            .contains(
+                                contactSearch,
+                                ignoreCase = true
+                            ) ||
+                        contact.last_name
+                            .orEmpty()
+                            .contains(
+                                contactSearch,
+                                ignoreCase = true
+                            ) ||
+                        contact.phone.contains(
+                            contactSearch,
+                            ignoreCase = true
+                        )
+                    )
+            }
+
+        var selectedUserId by
+            remember(
+                showAddMemberDialog
+            ) {
+                mutableStateOf<String?>(null)
+            }
+
+        AlertDialog(
+            onDismissRequest = {
+                if (
+                    !uiState.actionLoading
+                ) {
+                    showAddMemberDialog =
+                        false
+                }
+            },
+            title = {
+                Text("Add Member")
+            },
+            text = {
+
+                Column {
+
+                    OutlinedTextField(
+                        value = contactSearch,
+                        onValueChange = {
+                            contactSearch = it
+                        },
+                        label = {
+                            Text("Search contact")
+                        },
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(12.dp)
+                    )
+
+                    if (contactsLoading) {
+
+                        CircularProgressIndicator()
+
+                    } else if (
+                        filteredContacts.isEmpty()
+                    ) {
+
+                        Text(
+                            text =
+                                "No contacts available"
+                        )
+
+                    } else {
+
+                        LazyColumn(
+                            modifier =
+                                Modifier.height(
+                                    280.dp
+                                )
+                        ) {
+
+                            items(
+                                filteredContacts,
+                                key = {
+                                    it.id
+                                }
+                            ) { contact ->
+
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                vertical =
+                                                    6.dp
+                                            ),
+                                    verticalAlignment =
+                                        Alignment.CenterVertically
+                                ) {
+
+                                    RadioButton(
+                                        selected =
+                                            selectedUserId ==
+                                                contact
+                                                    .linked_user_id,
+                                        onClick = {
+                                            selectedUserId =
+                                                contact
+                                                    .linked_user_id
+                                        }
+                                    )
+
+                                    Column {
+
+                                        Text(
+                                            text =
+                                                listOfNotNull(
+                                                    contact.first_name,
+                                                    contact.last_name
+                                                ).joinToString(
+                                                    " "
+                                                )
+                                        )
+
+                                        Text(
+                                            text =
+                                                "${contact.country_code}${contact.phone}",
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .bodySmall
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+
+                TextButton(
+                    onClick = {
+
+                        val userId =
+                            selectedUserId
+
+                        if (
+                            !userId.isNullOrBlank() &&
+                            !token.isNullOrBlank() &&
+                            !uiState.actionLoading
+                        ) {
+                            viewModel.addGroupMember(
+                                token = token,
+                                conversationId =
+                                    conversationId,
+                                userId = userId
+                            )
+
+                            showAddMemberDialog =
+                                false
+                        }
+                    },
+                    enabled =
+                        selectedUserId != null &&
+                            !uiState.actionLoading &&
+                            !contactsLoading
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+
+                TextButton(
+                    onClick = {
+                        if (
+                            !uiState.actionLoading
+                        ) {
+                            showAddMemberDialog =
+                                false
+                        }
+                    },
+                    enabled =
+                        !uiState.actionLoading
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showRemoveMemberDialog) {
+
+        val selectedMember =
+            memberToRemove
+
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.actionLoading) {
+                    showRemoveMemberDialog =
+                        false
+                    memberToRemove = null
+                }
+            },
+            title = {
+                Text("Remove Member?")
+            },
+            text = {
+                Text(
+                    "Remove " +
+                        (
+                            selectedMember
+                                ?.display_name
+                                .orEmpty()
+                                .ifBlank {
+                                    selectedMember
+                                        ?.phone
+                                        .orEmpty()
+                                }
+                        ) +
+                        " from this group?"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+
+                        val userId =
+                            selectedMember
+                                ?.user_id
+
+                        if (
+                            !uiState.actionLoading &&
+                            !token.isNullOrBlank() &&
+                            !userId.isNullOrBlank()
+                        ) {
+                            showRemoveMemberDialog =
+                                false
+
+                            memberToRemove = null
+
+                            viewModel.removeGroupMember(
+                                token = token,
+                                conversationId =
+                                    conversationId,
+                                userId = userId
+                            )
+                        }
+                    },
+                    enabled =
+                        !uiState.actionLoading
+                ) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        if (
+                            !uiState.actionLoading
+                        ) {
+                            showRemoveMemberDialog =
+                                false
+                            memberToRemove = null
+                        }
+                    },
+                    enabled =
+                        !uiState.actionLoading
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showDeleteDialog) {
@@ -503,7 +899,9 @@ viewModel: GroupInfoViewModel =
 
 @Composable
 private fun GroupMemberRow(
-    member: GroupMember
+    member: GroupMember,
+    canRemove: Boolean,
+    onRemove: () -> Unit
 ) {
 
     Row(
@@ -597,6 +995,15 @@ private fun GroupMemberRow(
                         .typography
                         .labelMedium
             )
+
+        } else if (canRemove) {
+
+            TextButton(
+                onClick = onRemove
+            ) {
+                Text("Remove")
+            }
         }
     }
 }
+
