@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -327,6 +328,27 @@ fun ChatFlowApp() {
     val context =
         androidx.compose.ui.platform.LocalContext.current
 
+    androidx.activity.compose.BackHandler(
+        enabled =
+            showProfile ||
+            showNewChat ||
+            selectedConversation != null
+    ) {
+        when {
+            showProfile -> {
+                showProfile = false
+            }
+
+            showNewChat -> {
+                showNewChat = false
+            }
+
+            selectedConversation != null -> {
+                selectedConversation = null
+            }
+        }
+    }
+
     Column(
         modifier =
             Modifier.fillMaxSize()
@@ -564,6 +586,11 @@ fun ConversationListScreen(
             mutableStateOf(false)
         }
 
+    var selectedFilter by
+        remember {
+            mutableStateOf("All")
+        }
+
     androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.loadConversations()
     }
@@ -745,12 +772,14 @@ fun ConversationListScreen(
 
                 androidx.compose.material3.Surface(
                     modifier =
-                        Modifier.clickable { },
+                        Modifier.clickable {
+                            selectedFilter = label
+                        },
                     shape =
                         androidx.compose.foundation.shape
                             .RoundedCornerShape(22.dp),
                     tonalElevation =
-                        if (label == "All") 2.dp
+                        if (label == selectedFilter) 2.dp
                         else 0.dp
                 ) {
 
@@ -913,6 +942,7 @@ fun ConversationListScreen(
                                         text =
                                             conversation
                                                 .other_user_display_name
+                                                .orEmpty()
                                                 .take(1)
                                                 .uppercase(),
                                         style =
@@ -935,7 +965,8 @@ fun ConversationListScreen(
                                 Text(
                                     text =
                                         conversation
-                                            .other_user_display_name,
+                                            .other_user_display_name
+                                            .orEmpty(),
                                     style =
                                         MaterialTheme
                                             .typography
@@ -992,6 +1023,348 @@ fun ConversationListScreen(
     }
 }
 
+
+@Composable
+fun NewGroupScreen(
+
+    onBack: () -> Unit,
+
+    onConversationCreated:
+        (Conversation) -> Unit,
+
+    users:
+        List<com.chatflow.app.data.User>,
+
+    viewModel: NewChatViewModel
+
+) {
+
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    val token =
+        SessionManager(context).getToken()
+
+    val uiState by
+        viewModel.uiState.collectAsState()
+
+    var groupTitle by
+        remember {
+            mutableStateOf("")
+        }
+
+    var selectedUserIds by
+        remember {
+            mutableStateOf(
+                emptySet<String>()
+            )
+        }
+
+    Column(
+
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal = 16.dp
+                )
+
+    ) {
+
+        Row(
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            verticalAlignment =
+                Alignment.CenterVertically
+
+        ) {
+
+            androidx.compose.material3.IconButton(
+
+                onClick = onBack
+
+            ) {
+
+                Icon(
+
+                    imageVector =
+                        Icons.Filled.ArrowBack,
+
+                    contentDescription =
+                        "Back"
+
+                )
+
+            }
+
+            Text(
+
+                text = "New Group",
+
+                style =
+                    MaterialTheme
+                        .typography
+                        .headlineSmall,
+
+                modifier =
+                    Modifier.padding(
+                        start = 4.dp
+                    )
+
+            )
+
+        }
+
+        Spacer(
+            modifier =
+                Modifier.height(12.dp)
+        )
+
+        OutlinedTextField(
+
+            value = groupTitle,
+
+            onValueChange = {
+                groupTitle = it
+            },
+
+            modifier =
+                Modifier.fillMaxWidth(),
+
+            label = {
+                Text("Group name")
+            },
+
+            singleLine = true
+
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(16.dp)
+        )
+
+        Text(
+
+            text =
+                "Select members (${selectedUserIds.size})",
+
+            style =
+                MaterialTheme
+                    .typography
+                    .titleMedium
+
+        )
+
+        Spacer(
+            modifier =
+                Modifier.height(8.dp)
+        )
+
+        if (users.isEmpty()) {
+
+            Box(
+                modifier =
+                    Modifier.fillMaxSize(),
+
+                contentAlignment =
+                    Alignment.Center
+
+            ) {
+
+                Text(
+                    text = "No users available"
+                )
+
+            }
+
+        } else {
+
+            LazyColumn(
+
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+
+                verticalArrangement =
+                    Arrangement.spacedBy(
+                        4.dp
+                    )
+
+            ) {
+
+                items(
+                    users,
+                    key = {
+                        it.id
+                    }
+                ) { user ->
+
+                    val selected =
+                        selectedUserIds
+                            .contains(user.id)
+
+                    Row(
+
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+
+                                    selectedUserIds =
+                                        if (selected) {
+
+                                            selectedUserIds -
+                                                user.id
+
+                                        } else {
+
+                                            selectedUserIds +
+                                                user.id
+
+                                        }
+
+                                }
+                                .padding(
+                                    vertical = 12.dp,
+                                    horizontal = 8.dp
+                                ),
+
+                        verticalAlignment =
+                            Alignment.CenterVertically
+
+                    ) {
+
+                        androidx.compose.material3.Checkbox(
+
+                            checked = selected,
+
+                            onCheckedChange = {
+                                selectedUserIds =
+                                    if (it) {
+
+                                        selectedUserIds +
+                                            user.id
+
+                                    } else {
+
+                                        selectedUserIds -
+                                            user.id
+
+                                    }
+                            }
+
+                        )
+
+                        Text(
+
+                            text =
+                                user.display_name,
+
+                            modifier =
+                                Modifier.padding(
+                                    start = 8.dp
+                                )
+
+                        )
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        if (uiState.message.isNotBlank()) {
+
+            Text(
+
+                text = uiState.message,
+
+                modifier =
+                    Modifier.padding(
+                        vertical = 8.dp
+                    )
+
+            )
+
+        }
+
+        Button(
+
+            onClick = {
+
+                if (!token.isNullOrBlank()) {
+
+                    viewModel.createGroupConversation(
+
+                        token = token,
+
+                        title = groupTitle.trim(),
+
+                        memberUserIds =
+                            selectedUserIds.toList()
+
+                    ) { conversation ->
+
+                        onConversationCreated(
+
+                            conversation.copy(
+
+                                title =
+                                    groupTitle.trim(),
+
+                                other_user_id = "",
+
+                                other_user_display_name =
+                                    groupTitle.trim()
+
+                            )
+
+                        )
+
+                    }
+
+                }
+
+            },
+
+            enabled =
+                groupTitle.trim().isNotBlank() &&
+                    selectedUserIds.isNotEmpty() &&
+                    !uiState.creating,
+
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        vertical = 12.dp
+                    )
+
+        ) {
+
+            if (uiState.creating) {
+
+                CircularProgressIndicator()
+
+            } else {
+
+                Text(
+                    text = "Create Group"
+                )
+
+            }
+
+        }
+
+    }
+
+}
+
 @Composable
 fun NewChatScreen(
     onBack: () -> Unit,
@@ -1016,6 +1389,11 @@ fun NewChatScreen(
             mutableStateOf(false)
         }
 
+    var showNewGroup by
+        remember {
+            mutableStateOf(false)
+        }
+
     androidx.compose.runtime.LaunchedEffect(
         token
     ) {
@@ -1024,6 +1402,34 @@ fun NewChatScreen(
             viewModel.loadUsers(token)
             viewModel.loadContacts(token)
         }
+    }
+
+    if (showNewGroup) {
+
+        NewGroupScreen(
+
+            onBack = {
+                showNewGroup = false
+            },
+
+            onConversationCreated = { conversation ->
+
+                showNewGroup = false
+
+                onConversationCreated(
+                    conversation
+                )
+
+            },
+
+            users = uiState.users,
+
+            viewModel = viewModel
+
+        )
+
+        return
+
     }
 
     if (showNewContact) {
@@ -1115,7 +1521,9 @@ fun NewChatScreen(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clickable { },
+                    .clickable {
+                    showNewGroup = true
+                },
             shape =
                 androidx.compose.foundation.shape
                     .RoundedCornerShape(16.dp)
@@ -1526,7 +1934,7 @@ fun ChatScreen(
                 uiState.messages.size
             ) {
                 if (uiState.messages.isNotEmpty()) {
-                    messageListState.animateScrollToItem(
+                    messageListState.scrollToItem(
                         uiState.messages.lastIndex
                     )
                 }
