@@ -120,7 +120,9 @@ class SocketManager {
 
     fun sendMessage(
         conversationId: String,
-        content: String
+        content: String,
+        expiresAt: String? = null,
+        replyToMessageId: String? = null
     ) {
         Log.d(
             "ChatFlowSocket",
@@ -137,6 +139,20 @@ class SocketManager {
                     "content",
                     content
                 )
+
+                if (expiresAt != null) {
+                    put(
+                        "expiresAt",
+                        expiresAt
+                    )
+                }
+
+                if (replyToMessageId != null) {
+                    put(
+                        "replyToMessageId",
+                        replyToMessageId
+                    )
+                }
             }
 
         if (socket?.connected() != true) {
@@ -161,6 +177,168 @@ class SocketManager {
             "ChatFlowSocket",
             "send_message emit completed"
         )
+    }
+
+    fun deleteMessage(
+        messageId: String
+    ) {
+        Log.d(
+            "ChatFlowSocket",
+            "Deleting message: $messageId"
+        )
+
+        if (socket?.connected() != true) {
+            Log.e(
+                "ChatFlowSocket",
+                "Cannot delete message: socket is not connected"
+            )
+            return
+        }
+
+        val data =
+            JSONObject().apply {
+                put(
+                    "messageId",
+                    messageId
+                )
+            }
+
+        socket?.emit(
+            "delete_message",
+            data
+        )
+
+        Log.d(
+            "ChatFlowSocket",
+            "delete_message emit completed: $data"
+        )
+    }
+
+    fun listenForMessageDeleted(
+        onMessageDeleted: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "message_deleted"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                Log.d(
+                    "ChatFlowSocket",
+                    "message_deleted received: $data"
+                )
+
+                onMessageDeleted(data)
+            }
+        }
+    }
+
+    fun reactToMessage(
+        messageId: String,
+        reaction: String
+    ) {
+        Log.d(
+            "ChatFlowSocket",
+            "Reacting to message: $messageId, reaction=$reaction"
+        )
+
+        if (socket?.connected() != true) {
+            Log.e(
+                "ChatFlowSocket",
+                "Cannot react to message: socket is not connected"
+            )
+            return
+        }
+
+        val data =
+            JSONObject().apply {
+                put(
+                    "messageId",
+                    messageId
+                )
+                put(
+                    "reaction",
+                    reaction
+                )
+            }
+
+        socket?.emit(
+            "react_to_message",
+            data
+        )
+
+        Log.d(
+            "ChatFlowSocket",
+            "react_to_message emit completed: $data"
+        )
+    }
+
+    fun removeMessageReaction(
+        messageId: String
+    ) {
+        Log.d(
+            "ChatFlowSocket",
+            "Removing reaction from message: $messageId"
+        )
+
+        if (socket?.connected() != true) {
+            Log.e(
+                "ChatFlowSocket",
+                "Cannot remove reaction: socket is not connected"
+            )
+            return
+        }
+
+        socket?.emit(
+            "remove_message_reaction",
+            messageId
+        )
+
+        Log.d(
+            "ChatFlowSocket",
+            "remove_message_reaction emit completed"
+        )
+    }
+
+    fun listenForMessageReactionUpdated(
+        onReaction: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "message_reaction_updated"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                Log.d(
+                    "ChatFlowSocket",
+                    "message_reaction_updated received: $data"
+                )
+
+                onReaction(data)
+            }
+        }
+    }
+
+    fun listenForMessageReactionRemoved(
+        onReactionRemoved: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "message_reaction_removed"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                Log.d(
+                    "ChatFlowSocket",
+                    "message_reaction_removed received: $data"
+                )
+
+                onReactionRemoved(data)
+            }
+        }
     }
 
     fun markDelivered(

@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     edited_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ,
 
     CONSTRAINT fk_messages_conversation
         FOREIGN KEY (conversation_id)
@@ -156,3 +157,31 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender
 
 CREATE INDEX IF NOT EXISTS idx_messages_created
     ON messages(created_at);
+
+
+CREATE TABLE IF NOT EXISTS message_reactions (
+    id BIGSERIAL PRIMARY KEY,
+    message_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    reaction VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_message_reactions_message
+        FOREIGN KEY (message_id)
+        REFERENCES messages(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_message_reactions_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_message_reaction_user
+        UNIQUE (message_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_reactions_message
+    ON message_reactions(message_id);
+
+CREATE INDEX IF NOT EXISTS idx_message_reactions_user
+    ON message_reactions(user_id);

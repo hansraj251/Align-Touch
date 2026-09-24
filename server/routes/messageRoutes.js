@@ -16,6 +16,12 @@ router.post(
     messageController.sendMessage
 );
 
+router.delete(
+    "/:messageId",
+    authMiddleware,
+    messageController.deleteMessageForEveryone
+);
+
 router.get(
     "/:conversationId",
     authMiddleware,

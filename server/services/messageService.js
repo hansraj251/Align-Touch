@@ -10,7 +10,8 @@ const messageService = {
         conversationId,
         senderId,
         content,
-        replyToMessageId = null
+        replyToMessageId = null,
+        expiresAt = null
     }) {
 
         if (!conversationId) {
@@ -23,6 +24,33 @@ const messageService = {
             throw new Error(
                 "Message content is required"
             );
+        }
+
+        if (expiresAt !== null) {
+            const expiryDate =
+                new Date(expiresAt);
+
+            if (
+                Number.isNaN(
+                    expiryDate.getTime()
+                )
+            ) {
+                throw new Error(
+                    "Invalid message expiry"
+                );
+            }
+
+            if (
+                expiryDate.getTime() <=
+                Date.now()
+            ) {
+                throw new Error(
+                    "Message expiry must be in the future"
+                );
+            }
+
+            expiresAt =
+                expiryDate;
         }
 
         const isMember =
@@ -67,8 +95,66 @@ const messageService = {
             senderId,
             messageType: "text",
             content: content.trim(),
-            replyToMessageId
+            replyToMessageId,
+            expiresAt
         });
+    },
+
+    async deleteMessageForEveryone(
+        messageId,
+        userId
+    ) {
+        const message =
+            await messageRepository.getById(
+                messageId
+            );
+
+        if (!message) {
+            throw new Error(
+                "Message not found"
+            );
+        }
+
+        const isMember =
+            await conversationRepository.isMember(
+                message.conversation_id,
+                userId
+            );
+
+        if (!isMember) {
+            throw new Error(
+                "You are not a member of this conversation"
+            );
+        }
+
+        if (
+            String(message.sender_id) !==
+            String(userId)
+        ) {
+            throw new Error(
+                "Only the sender can delete this message"
+            );
+        }
+
+        if (message.deleted_at) {
+            throw new Error(
+                "Message is already deleted"
+            );
+        }
+
+        const deletedMessage =
+            await messageRepository.deleteForEveryone(
+                messageId,
+                userId
+            );
+
+        if (!deletedMessage) {
+            throw new Error(
+                "Message could not be deleted"
+            );
+        }
+
+        return deletedMessage;
     },
 
     async listMessages(

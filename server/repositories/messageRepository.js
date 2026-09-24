@@ -8,7 +8,8 @@ const messageRepository = {
         senderId,
         messageType,
         content,
-        replyToMessageId
+        replyToMessageId,
+        expiresAt
     }) {
 
         const result =
@@ -19,14 +20,16 @@ const messageRepository = {
                     sender_id,
                     message_type,
                     content,
-                    reply_to_message_id
+                    reply_to_message_id,
+                    expires_at
                 )
                 VALUES (
                     $1,
                     $2,
                     $3,
                     $4,
-                    $5
+                    $5,
+                    $6
                 )
                 RETURNING
                     id,
@@ -37,14 +40,16 @@ const messageRepository = {
                     reply_to_message_id,
                     created_at,
                     edited_at,
-                    deleted_at
+                    deleted_at,
+                    expires_at
                 `,
                 [
                     conversationId,
                     senderId,
                     messageType,
                     content,
-                    replyToMessageId
+                    replyToMessageId,
+                    expiresAt
                 ]
             );
 
@@ -65,11 +70,47 @@ const messageRepository = {
                     reply_to_message_id,
                     created_at,
                     edited_at,
-                    deleted_at
+                    deleted_at,
+                    expires_at
                 FROM messages
                 WHERE id = $1
                 `,
                 [id]
+            );
+
+        return result.rows[0] || null;
+    },
+
+    async deleteForEveryone(
+        messageId,
+        senderId
+    ) {
+        const result =
+            await pool.query(
+                `
+                UPDATE messages
+                SET
+                    content = NULL,
+                    deleted_at = NOW()
+                WHERE id = $1
+                  AND sender_id = $2
+                  AND deleted_at IS NULL
+                RETURNING
+                    id,
+                    conversation_id,
+                    sender_id,
+                    message_type,
+                    content,
+                    reply_to_message_id,
+                    created_at,
+                    edited_at,
+                    deleted_at,
+                    expires_at
+                `,
+                [
+                    messageId,
+                    senderId
+                ]
             );
 
         return result.rows[0] || null;
@@ -92,9 +133,14 @@ const messageRepository = {
                     reply_to_message_id,
                     created_at,
                     edited_at,
-                    deleted_at
+                    deleted_at,
+                    expires_at
                 FROM messages
                 WHERE conversation_id = $1
+                  AND (
+                      expires_at IS NULL
+                      OR expires_at > NOW()
+                  )
                 ORDER BY id ASC
                 LIMIT $2
                 `,

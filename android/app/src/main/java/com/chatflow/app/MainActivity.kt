@@ -1,5 +1,9 @@
 package com.chatflow.app
 
+import com.chatflow.app.data.Message
+
+import androidx.compose.foundation.border
+
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
@@ -805,27 +809,79 @@ fun ConversationListScreen(
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
-            androidx.compose.material3.OutlinedTextField(
+            androidx.compose.foundation.text.BasicTextField(
                 value = searchQuery,
                 onValueChange = {
                     searchQuery = it
                 },
                 modifier =
-                    Modifier.weight(1f),
+                    Modifier
+                        .weight(1f)
+                        .height(48.dp),
                 singleLine = true,
-                placeholder = {
-                    Text(
-                        "Search"
-                    )
-                },
-                leadingIcon = {
-                    Text("⌕")
-                },
-                shape =
-                    androidx.compose.foundation.shape
-                        .RoundedCornerShape(28.dp)
-            )
+                textStyle =
+                    androidx.compose.material3.LocalTextStyle.current.copy(
+                        fontSize = 14.sp
+                    ),
+                decorationBox = { innerTextField ->
+                    androidx.compose.foundation.layout.Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .clip(
+                                    androidx.compose.foundation.shape
+                                        .RoundedCornerShape(28.dp)
+                                )
+                                .background(
+                                    androidx.compose.material3.MaterialTheme
+                                        .colorScheme.surface
+                                )
+                                .border(
+                                    1.dp,
+                                    androidx.compose.material3.MaterialTheme
+                                        .colorScheme.outline,
+                                    androidx.compose.foundation.shape
+                                        .RoundedCornerShape(28.dp)
+                                )
+                                .padding(
+                                    horizontal = 14.dp
+                                )
+                    ) {
+                        androidx.compose.foundation.layout.Row(
+                            modifier =
+                                Modifier.fillMaxSize(),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "⌕",
+                                fontSize = 18.sp,
+                                modifier =
+                                    Modifier.padding(
+                                        end = 8.dp
+                                    )
+                            )
 
+                            androidx.compose.foundation.layout.Box(
+                                modifier =
+                                    Modifier.weight(1f)
+                            ) {
+                                if (searchQuery.isBlank()) {
+                                    Text(
+                                        text = "Search",
+                                        fontSize = 14.sp,
+                                        color =
+                                            androidx.compose.material3.MaterialTheme
+                                                .colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                innerTextField()
+                            }
+                        }
+                    }
+                }
+            )
             androidx.compose.foundation.layout.Box {
 
                 androidx.compose.material3.IconButton(
@@ -2029,6 +2085,18 @@ fun ChatScreen(
     var messageText by remember {
         mutableStateOf("")
     }
+    var reactionMenuMessageId by remember {
+        mutableStateOf<String?>(null)
+    }
+    var replyingToMessage by remember {
+        mutableStateOf<Message?>(null)
+    }
+    var expiryMenuExpanded by remember {
+        mutableStateOf(false)
+    }
+    var selectedExpirySeconds by remember {
+        mutableStateOf<Long?>(null)
+    }
 
     androidx.compose.runtime.LaunchedEffect(
         conversationId
@@ -2283,10 +2351,81 @@ fun ChatScreen(
                                         bottom = 7.dp
                                     )
                             ) {
+                                val repliedMessage =
+                                    message.reply_to_message_id?.let { replyId ->
+                                        uiState.messages.firstOrNull { originalMessage ->
+                                            originalMessage.id == replyId
+                                        }
+                                    }
+
+                                if (repliedMessage != null) {
+                                    Card(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(
+                                                    bottom = 6.dp
+                                                ),
+                                        colors =
+                                            CardDefaults.cardColors(
+                                                containerColor =
+                                                    MaterialTheme
+                                                        .colorScheme
+                                                        .surface
+                                            ),
+                                        shape =
+                                            RoundedCornerShape(
+                                                8.dp
+                                            )
+                                    ) {
+                                        Column(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(
+                                                        8.dp
+                                                    )
+                                        ) {
+                                            Text(
+                                                text = "↩ Reply",
+                                                style =
+                                                    MaterialTheme
+                                                        .typography
+                                                        .labelSmall
+                                            )
+                                            Text(
+                                                text =
+                                                    if (
+                                                        repliedMessage.deleted_at != null
+                                                    ) {
+                                                        "This message was deleted"
+                                                    } else {
+                                                        repliedMessage.content
+                                                            ?: ""
+                                                    },
+                                                maxLines = 2,
+                                                overflow =
+                                                    androidx.compose.ui.text.style
+                                                        .TextOverflow.Ellipsis,
+                                                style =
+                                                    MaterialTheme
+                                                        .typography
+                                                        .bodySmall
+                                            )
+                                        }
+                                    }
+                                }
+
                                 Text(
                                     text =
-                                        message.content
-                                            ?: "",
+                                        if (
+                                            message.deleted_at != null
+                                        ) {
+                                            "This message was deleted"
+                                        } else {
+                                            message.content
+                                                ?: ""
+                                        },
                                     style =
                                         MaterialTheme
                                             .typography
@@ -2297,6 +2436,152 @@ fun ChatScreen(
                                     modifier =
                                         Modifier.height(3.dp)
                                 )
+
+                                val messageReactions =
+                                    uiState.messageReactions[
+                                        message.id
+                                    ].orEmpty()
+
+                                androidx.compose.foundation.layout.Row(
+                                    modifier =
+                                        Modifier.fillMaxWidth(),
+                                    horizontalArrangement =
+                                        Arrangement.End,
+                                    verticalAlignment =
+                                        Alignment.CenterVertically
+                                ) {
+                                    messageReactions
+                                        .groupBy {
+                                            it.reaction
+                                        }
+                                        .forEach { entry ->
+                                            androidx.compose.material3.Text(
+                                                text =
+                                                    entry.key +
+                                                        if (entry.value.size > 1) {
+                                                            " ${entry.value.size}"
+                                                        } else {
+                                                            ""
+                                                        },
+                                                modifier =
+                                                    Modifier
+                                                        .padding(
+                                                            horizontal = 2.dp
+                                                        )
+                                                        .clickable {
+                                                            val ownReaction =
+                                                                entry.value.any {
+                                                                    it.user_id ==
+                                                                        currentUserId
+                                                                }
+
+                                                            if (ownReaction) {
+                                                                viewModel.removeMessageReaction(
+                                                                    message.id
+                                                                )
+                                                            } else {
+                                                                viewModel.reactToMessage(
+                                                                    message.id,
+                                                                    entry.key
+                                                                )
+                                                            }
+                                                        },
+                                                style =
+                                                    MaterialTheme
+                                                        .typography
+                                                        .labelMedium
+                                            )
+                                        }
+
+                                    androidx.compose.material3.TextButton(
+                                        onClick = {
+                                            reactionMenuMessageId =
+                                                message.id
+                                        }
+                                    ) {
+                                        Text("＋")
+                                    }
+
+                                    androidx.compose.material3.DropdownMenu(
+                                        expanded =
+                                            reactionMenuMessageId ==
+                                                message.id,
+                                        onDismissRequest = {
+                                            reactionMenuMessageId =
+                                                null
+                                        }
+                                    ) {
+                                        androidx.compose.material3.DropdownMenuItem(
+                                            text = {
+                                                Text("Reply")
+                                            },
+                                            onClick = {
+                                                replyingToMessage =
+                                                    message
+                                                reactionMenuMessageId =
+                                                    null
+                                            }
+                                        )
+
+                                        if (
+                                            isMine &&
+                                            message.deleted_at == null
+                                        ) {
+                                            androidx.compose.material3.DropdownMenuItem(
+                                                text = {
+                                                    Text("Delete")
+                                                },
+                                                onClick = {
+                                                    viewModel.deleteMessage(
+                                                        message.id
+                                                    )
+                                                    reactionMenuMessageId =
+                                                        null
+                                                }
+                                            )
+                                        }
+
+                                        listOf(
+                                            "👍",
+                                            "❤️",
+                                            "😂",
+                                            "😮",
+                                            "😢",
+                                            "😡"
+                                        ).forEach { reaction ->
+                                            androidx.compose.material3.DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        reaction
+                                                    )
+                                                },
+                                                onClick = {
+                                                    val ownReaction =
+                                                        messageReactions.any {
+                                                            it.user_id ==
+                                                                currentUserId &&
+                                                                it.reaction ==
+                                                                reaction
+                                                        }
+
+                                                    if (ownReaction) {
+                                                        viewModel.removeMessageReaction(
+                                                            message.id
+                                                        )
+                                                    } else {
+                                                        viewModel.reactToMessage(
+                                                            message.id,
+                                                            reaction
+                                                        )
+                                                    }
+
+                                                    reactionMenuMessageId =
+                                                        null
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
 
                                 Row(
                                     modifier =
@@ -2394,6 +2679,76 @@ fun ChatScreen(
                     )
             ) {
 
+                if (replyingToMessage != null) {
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = 8.dp,
+                                    top = 6.dp,
+                                    end = 8.dp
+                                ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .surface
+                            )
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = 10.dp,
+                                        top = 6.dp,
+                                        end = 4.dp,
+                                        bottom = 6.dp
+                                    ),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier =
+                                    Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "↩ Reply",
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .labelMedium
+                                )
+                                Text(
+                                    text =
+                                        replyingToMessage
+                                            ?.content
+                                            ?: "",
+                                    maxLines = 2,
+                                    overflow =
+                                        androidx.compose.ui.text.style
+                                            .TextOverflow.Ellipsis,
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodySmall
+                                )
+                            }
+
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    replyingToMessage =
+                                        null
+                                }
+                            ) {
+                                Text("×")
+                            }
+                        }
+                    }
+                }
+
                 Row(
                     modifier =
                         Modifier
@@ -2441,6 +2796,90 @@ fun ChatScreen(
                     )
 
                     androidx.compose.material3.TextButton(
+                        onClick = {
+                            expiryMenuExpanded =
+                                true
+                        }
+                    ) {
+                        Text("⏳")
+                    }
+
+                    DropdownMenu(
+                        expanded = expiryMenuExpanded,
+                        onDismissRequest = {
+                            expiryMenuExpanded =
+                                false
+                        }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text("Never")
+                            },
+                            onClick = {
+                                selectedExpirySeconds =
+                                    null
+                                expiryMenuExpanded =
+                                    false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text("30 seconds")
+                            },
+                            onClick = {
+                                selectedExpirySeconds =
+                                    30L
+                                expiryMenuExpanded =
+                                    false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text("1 minute")
+                            },
+                            onClick = {
+                                selectedExpirySeconds =
+                                    60L
+                                expiryMenuExpanded =
+                                    false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text("1 hour")
+                            },
+                            onClick = {
+                                selectedExpirySeconds =
+                                    3600L
+                                expiryMenuExpanded =
+                                    false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text("24 hours")
+                            },
+                            onClick = {
+                                selectedExpirySeconds =
+                                    86400L
+                                expiryMenuExpanded =
+                                    false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text("7 days")
+                            },
+                            onClick = {
+                                selectedExpirySeconds =
+                                    604800L
+                                expiryMenuExpanded =
+                                    false
+                            }
+                        )
+                    }
+
+                    androidx.compose.material3.TextButton(
                         onClick = {}
                     ) {
                         Text("📎")
@@ -2457,14 +2896,29 @@ fun ChatScreen(
                 onClick = {
 
                     if (messageText.isNotBlank()) {
+                        val expiresAt =
+                            selectedExpirySeconds?.let { seconds ->
+                                java.time.Instant
+                                    .ofEpochMilli(
+                                        System.currentTimeMillis() +
+                                            (seconds * 1000L)
+                                    )
+                                    .toString()
+                            }
+
                         viewModel.sendMessage(
                             conversationId =
                                 conversationId,
                             content =
-                                messageText
+                                messageText,
+                            expiresAt =
+                                expiresAt,
+                            replyToMessageId =
+                                replyingToMessage?.id
                         )
 
                         messageText = ""
+                        replyingToMessage = null
                     }
                 },
                 enabled =

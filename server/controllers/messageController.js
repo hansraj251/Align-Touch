@@ -10,7 +10,8 @@ const messageController = {
             const {
                 conversationId,
                 content,
-                replyToMessageId
+                replyToMessageId,
+                expiresAt
             } = req.body;
 
             const message =
@@ -18,7 +19,8 @@ const messageController = {
                     conversationId,
                     senderId: req.user.userId,
                     content,
-                    replyToMessageId
+                    replyToMessageId,
+                    expiresAt
                 });
 
             return res.status(201).json({
@@ -30,6 +32,34 @@ const messageController = {
 
             console.error(
                 "Send message error:",
+                error
+            );
+
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    },
+
+    async deleteMessageForEveryone(
+        req,
+        res
+    ) {
+        try {
+            const message =
+                await messageService.deleteMessageForEveryone(
+                    req.params.messageId,
+                    req.user.userId
+                );
+
+            return res.status(200).json({
+                success: true,
+                message
+            });
+        } catch (error) {
+            console.error(
+                "Delete message error:",
                 error
             );
 

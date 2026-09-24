@@ -8,9 +8,15 @@ import androidx.lifecycle.viewModelScope
 import com.chatflow.app.data.Message
 import com.chatflow.app.data.MessageRepository
 import com.chatflow.app.data.MessageReceipt
+import com.chatflow.app.data.MessageReaction
 import com.chatflow.app.data.SendMessageRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class MessageUiState(
@@ -19,6 +25,7 @@ data class MessageUiState(
     val messages: List<Message> = emptyList(),
 
     val messageReceipts: Map<String, MessageReceipt> = emptyMap(),
+    val messageReactions: Map<String, List<MessageReaction>> = emptyMap(),
     val message: String = ""
 )
 
@@ -38,6 +45,9 @@ class MessageViewModel(
     private val socketMessages =
         mutableListOf<Message>()
 
+    private var expiryWatcherStarted =
+        false
+
     private val _uiState =
         MutableStateFlow(
             MessageUiState()
@@ -46,9 +56,78 @@ class MessageViewModel(
     val uiState: StateFlow<MessageUiState> =
         _uiState
 
+    private fun startExpiryWatcher() {
+        if (expiryWatcherStarted) {
+            return
+        }
+
+        expiryWatcherStarted = true
+
+        viewModelScope.launch {
+            while (true) {
+                delay(1000)
+
+                val now =
+                    System.currentTimeMillis()
+
+                val expiredIds =
+                    _uiState.value.messages
+                        .filter { message ->
+                            message.expires_at
+                                ?.let { expiresAt ->
+                                    try {
+                                        java.time.Instant
+                                            .parse(
+                                                expiresAt
+                                            )
+                                            .toEpochMilli() <=
+                                            now
+                                    } catch (
+                                        error: Exception
+                                    ) {
+                                        false
+                                    }
+                                }
+                                ?: false
+                        }
+                        .map { message ->
+                            message.id
+                        }
+
+                if (expiredIds.isNotEmpty()) {
+                    _uiState.value =
+                        _uiState.value.copy(
+                            messages =
+                                _uiState.value.messages
+                                    .filterNot { message ->
+                                        expiredIds.contains(
+                                            message.id
+                                        )
+                                    },
+                            messageReceipts =
+                                _uiState.value.messageReceipts
+                                    .filterKeys { messageId ->
+                                        !expiredIds.contains(
+                                            messageId
+                                        )
+                                    },
+                            messageReactions =
+                                _uiState.value.messageReactions
+                                    .filterKeys { messageId ->
+                                        !expiredIds.contains(
+                                            messageId
+                                        )
+                                    }
+                        )
+                }
+            }
+        }
+    }
+
     fun loadMessages(
         conversationId: String
     ) {
+        startExpiryWatcher()
 
         val token =
             sessionManager.getToken()
@@ -209,6 +288,158 @@ class MessageViewModel(
                     }
                 }
 
+                socketManager.listenForMessageReactionUpdated { data ->
+                    try {
+                        val reaction =
+                            MessageReaction(
+                                id =
+                                    data.getString(
+                                        "id"
+                                    ),
+                                message_id =
+                                    data.getString(
+                                        "message_id"
+                                    ),
+                                user_id =
+                                    data.getString(
+                                        "user_id"
+                                    ),
+                                reaction =
+                                    data.getString(
+                                        "reaction"
+                                    ),
+                                created_at =
+                                    data.getString(
+                                        "created_at"
+                                    )
+                            )
+
+                        val currentReactions =
+                            _uiState.value.messageReactions[
+                                reaction.message_id
+                            ].orEmpty()
+
+                        val updatedReactions =
+                            currentReactions
+                                .filterNot {
+                                    it.user_id ==
+                                        reaction.user_id
+                                } +
+                                reaction
+
+                        _uiState.value =
+                            _uiState.value.copy(
+                                messageReactions =
+                                    _uiState.value.messageReactions +
+                                        (
+                                            reaction.message_id to
+                                                updatedReactions
+                                        )
+                            )
+                    } catch (error: Exception) {
+                        Log.e(
+                            "ChatFlowMessage",
+                            "Message reaction update error",
+                            error
+                        )
+                    }
+                }
+
+                socketManager.listenForMessageReactionRemoved { data ->
+                    try {
+                        val messageId =
+                            data.getString(
+                                "messageId"
+                            )
+
+                        val userId =
+                            data.getString(
+                                "userId"
+                            )
+
+                        val currentReactions =
+                            _uiState.value.messageReactions[
+                                messageId
+                            ].orEmpty()
+
+                        val updatedReactions =
+                            currentReactions.filterNot {
+                                it.user_id ==
+                                    userId
+                            }
+
+                        _uiState.value =
+                            _uiState.value.copy(
+                                messageReactions =
+                                    _uiState.value.messageReactions +
+                                        (
+                                            messageId to
+                                                updatedReactions
+                                        )
+                            )
+                    } catch (error: Exception) {
+                        Log.e(
+                            "ChatFlowMessage",
+                            "Message reaction removal error",
+                            error
+                        )
+                    }
+                }
+
+                socketManager.listenForMessageDeleted { data ->
+                    try {
+                        val messageId =
+                            data.getString(
+                                "id"
+                            )
+
+                        val deletedAt =
+                            if (
+                                data.isNull(
+                                    "deleted_at"
+                                )
+                            ) {
+                                null
+                            } else {
+                                data.getString(
+                                    "deleted_at"
+                                )
+                            }
+
+                        val updatedMessages =
+                            _uiState.value.messages.map { message ->
+                                if (
+                                    message.id ==
+                                    messageId
+                                ) {
+                                    message.copy(
+                                        content = null,
+                                        deleted_at = deletedAt
+                                    )
+                                } else {
+                                    message
+                                }
+                            }
+
+                        _uiState.value =
+                            _uiState.value.copy(
+                                messages =
+                                    updatedMessages,
+                                messageReactions =
+                                    _uiState.value.messageReactions
+                                        .filterKeys {
+                                            it != messageId
+                                        }
+                            )
+                    } catch (error: Exception) {
+                        Log.e(
+                            "ChatFlowMessage",
+                            "Message deletion error",
+                            error
+                        )
+                    }
+                }
+
                 socketManager.listenForNewMessages { data ->
                     try {
                         val message =
@@ -279,6 +510,18 @@ class MessageViewModel(
                                     } else {
                                         data.getString(
                                             "deleted_at"
+                                        )
+                                    },
+                                expires_at =
+                                    if (
+                                        data.isNull(
+                                            "expires_at"
+                                        )
+                                    ) {
+                                        null
+                                    } else {
+                                        data.getString(
+                                            "expires_at"
                                         )
                                     }
                             )
@@ -374,6 +617,64 @@ class MessageViewModel(
         }
     }
 
+    private suspend fun loadMessageReactions(
+        messages: List<Message>,
+        token: String
+    ) {
+        val reactionsByMessage =
+            coroutineScope {
+                messages.map { message ->
+                    async {
+                        try {
+                            val response =
+                                repository.getMessageReactions(
+                                    messageId =
+                                        message.id,
+                                    token =
+                                        token
+                                )
+
+                            message.id to
+                                response.reactions
+                        } catch (error: Exception) {
+                            Log.e(
+                                "ChatFlowMessage",
+                                "Failed to load reactions for message ${message.id}",
+                                error
+                            )
+
+                            message.id to
+                                emptyList()
+                        }
+                    }
+                }.awaitAll()
+            }.toMap()
+
+        _uiState.value =
+            _uiState.value.copy(
+                messageReactions =
+                    reactionsByMessage
+            )
+    }
+
+    fun reactToMessage(
+        messageId: String,
+        reaction: String
+    ) {
+        socketManager.reactToMessage(
+            messageId,
+            reaction
+        )
+    }
+
+    fun removeMessageReaction(
+        messageId: String
+    ) {
+        socketManager.removeMessageReaction(
+            messageId
+        )
+    }
+
     fun markMessageRead(
         messageId: String
     ) {
@@ -382,9 +683,19 @@ class MessageViewModel(
         )
     }
 
+    fun deleteMessage(
+        messageId: String
+    ) {
+        socketManager.deleteMessage(
+            messageId
+        )
+    }
+
     fun sendMessage(
         conversationId: String,
-        content: String
+        content: String,
+        expiresAt: String? = null,
+        replyToMessageId: String? = null
     ) {
 
         if (content.isBlank()) {
@@ -420,7 +731,9 @@ class MessageViewModel(
 
             socketManager.sendMessage(
                 conversationId = conversationId,
-                content = content
+                content = content,
+                expiresAt = expiresAt,
+                replyToMessageId = replyToMessageId
             )
 
             _uiState.value =

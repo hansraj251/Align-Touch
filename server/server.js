@@ -27,6 +27,9 @@ const conversationRoutes =
 const messageRoutes =
     require("./routes/messageRoutes");
 
+const messageReactionRoutes =
+    require("./routes/messageReactionRoutes");
+
 const contactRoutes =
     require("./routes/contactRoutes");
 
@@ -35,6 +38,9 @@ const conversationRepository =
 
 const messageService =
     require("./services/messageService");
+
+const messageReactionService =
+    require("./services/messageReactionService");
 
 const messageRepository =
     require("./repositories/messageRepository");
@@ -105,6 +111,11 @@ app.use(
 );
 
 app.use(
+    "/api/message-reactions",
+    messageReactionRoutes
+);
+
+app.use(
     "/api/contacts",
     contactRoutes
 );
@@ -126,6 +137,60 @@ io.on(
 
         const userId =
             socket.user.userId;
+
+        socket.on(
+            "join_conversation",
+            async (conversationId) => {
+                try {
+                    if (!conversationId) {
+                        return;
+                    }
+
+                    const isMember =
+                        await conversationRepository.isMember(
+                            conversationId,
+                            userId
+                        );
+
+                    if (!isMember) {
+                        socket.emit(
+                            "socket_error",
+                            {
+                                message:
+                                    "You are not a member of this conversation"
+                            }
+                        );
+                        return;
+                    }
+
+                    const conversationRoom =
+                        `conversation_${conversationId}`;
+
+                    socket.join(
+                        conversationRoom
+                    );
+
+                    console.log(
+                        "User joined conversation:",
+                        userId,
+                        conversationId
+                    );
+                } catch (error) {
+                    console.error(
+                        "Join conversation error:",
+                        error
+                    );
+
+                    socket.emit(
+                        "socket_error",
+                        {
+                            message:
+                                "Failed to join conversation"
+                        }
+                    );
+                }
+            }
+        );
 
         const presenceResult =
             userPresence.addSocket(
@@ -205,66 +270,6 @@ io.on(
         );
 
         socket.on(
-            "join_conversation",
-            async (conversationId) => {
-
-                try {
-
-                    if (!conversationId) {
-                        return;
-                    }
-
-                    const isMember =
-                        await conversationRepository.isMember(
-                            conversationId,
-                            userId
-                        );
-
-                    if (!isMember) {
-
-                        socket.emit(
-                            "socket_error",
-                            {
-                                message:
-                                    "You are not a member of this conversation"
-                            }
-                        );
-
-                        return;
-                    }
-
-                    const conversationRoom =
-                        `conversation_${conversationId}`;
-
-                    socket.join(
-                        conversationRoom
-                    );
-
-                    console.log(
-                        "User joined conversation:",
-                        userId,
-                        conversationId
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "Join conversation error:",
-                        error
-                    );
-
-                    socket.emit(
-                        "socket_error",
-                        {
-                            message:
-                                "Failed to join conversation"
-                        }
-                    );
-                }
-            }
-        );
-
-        socket.on(
             "send_message",
             async (data) => {
 
@@ -280,7 +285,8 @@ io.on(
                     const {
                         conversationId,
                         content,
-                        replyToMessageId
+                        replyToMessageId,
+                        expiresAt
                     } = data || {};
 
                     const message =
@@ -288,7 +294,8 @@ io.on(
                             conversationId,
                             senderId: userId,
                             content,
-                            replyToMessageId
+                            replyToMessageId,
+                            expiresAt
                         });
 
                     const conversationRoom =
@@ -317,6 +324,174 @@ io.on(
 
                     console.error(
                         "Socket send message error:",
+                        error
+                    );
+
+                    socket.emit(
+                        "socket_error",
+                        {
+                            message:
+                                error.message
+                        }
+                    );
+                }
+            }
+        );
+
+        socket.on(
+            "delete_message",
+            async (data) => {
+                console.log(
+                    "Socket delete_message received:",
+                    data,
+                    "user:",
+                    userId
+                );
+
+                try {
+                    const {
+                        messageId
+                    } = data || {};
+
+                    const message =
+                        await messageService.deleteMessageForEveryone(
+                            messageId,
+                            userId
+                        );
+
+                    const conversationRoom =
+                        `conversation_${message.conversation_id}`;
+
+                    console.log(
+                        "Broadcasting message_deleted:",
+                        message,
+                        "room:",
+                        conversationRoom
+                    );
+
+                    io.to(
+                        conversationRoom
+                    ).emit(
+                        "message_deleted",
+                        message
+                    );
+                } catch (error) {
+                    console.error(
+                        "Socket delete message error:",
+                        error
+                    );
+
+                    socket.emit(
+                        "socket_error",
+                        {
+                            message:
+                                error.message
+                        }
+                    );
+                }
+            }
+        );
+
+        socket.on(
+            "react_to_message",
+            async (data) => {
+                console.log(
+                    "Socket react_to_message received:",
+                    data,
+                    "user:",
+                    userId
+                );
+
+                try {
+                    const {
+                        messageId,
+                        reaction
+                    } = data || {};
+
+                    const result =
+                        await messageReactionService.addReaction({
+                            messageId,
+                            userId,
+                            reaction
+                        });
+
+                    const message =
+                        await messageRepository.getById(
+                            messageId
+                        );
+
+                    console.log(
+                        "Reaction message lookup:",
+                        message
+                    );
+
+                    const conversationRoom =
+                        `conversation_${message.conversation_id}`;
+
+                    console.log(
+                        "Broadcasting message_reaction_updated:",
+                        result,
+                        "room:",
+                        conversationRoom
+                    );
+
+                    io.to(
+                        conversationRoom
+                    ).emit(
+                        "message_reaction_updated",
+                        result
+                    );
+                } catch (error) {
+                    console.error(
+                        "Socket react to message error:",
+                        error
+                    );
+
+                    socket.emit(
+                        "socket_error",
+                        {
+                            message:
+                                error.message
+                        }
+                    );
+                }
+            }
+        );
+
+        socket.on(
+            "remove_message_reaction",
+            async (messageId) => {
+                try {
+                    const result =
+                        await messageReactionService.removeReaction({
+                            messageId,
+                            userId
+                        });
+
+                    const message =
+                        await messageRepository.getById(
+                            messageId
+                        );
+
+                    const conversationRoom =
+                        `conversation_${message.conversation_id}`;
+
+                    io.to(
+                        conversationRoom
+                    ).emit(
+                        "message_reaction_removed",
+                        {
+                            messageId:
+                                String(messageId),
+                            userId:
+                                String(userId),
+                            reaction:
+                                result?.reaction || null
+                        }
+                    );
+                } catch (error) {
+                    console.error(
+                        "Socket remove message reaction error:",
                         error
                     );
 
