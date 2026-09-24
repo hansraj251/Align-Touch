@@ -25,7 +25,21 @@ data class Message(
     val reply_to_message_id: String?,
     val created_at: String,
     val edited_at: String?,
-    val deleted_at: String?
+    val deleted_at: String?,
+    val expires_at: String?
+)
+
+data class MessageReactionResponse(
+    val success: Boolean,
+    val reactions: List<MessageReaction>
+)
+
+data class MessageReaction(
+    val id: String,
+    val message_id: String,
+    val user_id: String,
+    val reaction: String,
+    val created_at: String
 )
 
 data class MessageReceipt(

@@ -14,6 +14,17 @@ class MessageRepository {
         )
     }
 
+    suspend fun getMessageReactions(
+        messageId: String,
+        token: String
+    ): MessageReactionResponse {
+        return ApiClient.authApi.getMessageReactions(
+            messageId = messageId,
+            authorization =
+                "Bearer $token"
+        )
+    }
+
     suspend fun sendMessage(
         request: SendMessageRequest,
         token: String

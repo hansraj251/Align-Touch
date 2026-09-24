@@ -77,6 +77,12 @@ interface AuthApi {
         @Header("Authorization")
         authorization: String
     ): SendMessageResponse
+    @GET("api/message-reactions/{messageId}/reaction")
+    suspend fun getMessageReactions(
+        @Path("messageId") messageId: String,
+        @Header("Authorization") authorization: String
+    ): MessageReactionResponse
+
     @GET("api/contacts")
     suspend fun getContacts(
         @Header("Authorization")
