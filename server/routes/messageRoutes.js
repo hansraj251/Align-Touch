@@ -16,10 +16,22 @@ router.post(
     messageController.sendMessage
 );
 
+router.post(
+    "/forward",
+    authMiddleware,
+    messageController.forwardMessage
+);
+
 router.delete(
     "/:messageId",
     authMiddleware,
     messageController.deleteMessageForEveryone
+);
+
+router.patch(
+    "/:messageId",
+    authMiddleware,
+    messageController.editMessage
 );
 
 router.get(

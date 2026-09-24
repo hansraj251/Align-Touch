@@ -23,6 +23,7 @@ data class Message(
     val message_type: String,
     val content: String?,
     val reply_to_message_id: String?,
+    val forwarded_from_message_id: String?,
     val created_at: String,
     val edited_at: String?,
     val deleted_at: String?,

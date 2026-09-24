@@ -9,7 +9,8 @@ const messageRepository = {
         messageType,
         content,
         replyToMessageId,
-        expiresAt
+        expiresAt,
+        forwardedFromMessageId = null
     }) {
 
         const result =
@@ -21,6 +22,7 @@ const messageRepository = {
                     message_type,
                     content,
                     reply_to_message_id,
+                    forwarded_from_message_id,
                     expires_at
                 )
                 VALUES (
@@ -29,7 +31,8 @@ const messageRepository = {
                     $3,
                     $4,
                     $5,
-                    $6
+                    $6,
+                    $7
                 )
                 RETURNING
                     id,
@@ -38,6 +41,7 @@ const messageRepository = {
                     message_type,
                     content,
                     reply_to_message_id,
+                    forwarded_from_message_id,
                     created_at,
                     edited_at,
                     deleted_at,
@@ -49,10 +53,59 @@ const messageRepository = {
                     messageType,
                     content,
                     replyToMessageId,
+                    forwardedFromMessageId,
                     expiresAt
                 ]
             );
 
+        return result.rows[0];
+    },
+
+    async forwardMessage({
+        conversationId,
+        senderId,
+        messageType,
+        content,
+        forwardedFromMessageId
+    }) {
+        const result =
+            await pool.query(
+                `
+                INSERT INTO messages (
+                    conversation_id,
+                    sender_id,
+                    message_type,
+                    content,
+                    forwarded_from_message_id
+                )
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5
+                )
+                RETURNING
+                    id,
+                    conversation_id,
+                    sender_id,
+                    message_type,
+                    content,
+                    reply_to_message_id,
+                    forwarded_from_message_id,
+                    created_at,
+                    edited_at,
+                    deleted_at,
+                    expires_at
+                `,
+                [
+                    conversationId,
+                    senderId,
+                    messageType,
+                    content,
+                    forwardedFromMessageId
+                ]
+            );
         return result.rows[0];
     },
 
@@ -68,6 +121,7 @@ const messageRepository = {
                     message_type,
                     content,
                     reply_to_message_id,
+                    forwarded_from_message_id,
                     created_at,
                     edited_at,
                     deleted_at,
@@ -102,6 +156,7 @@ const messageRepository = {
                     message_type,
                     content,
                     reply_to_message_id,
+                    forwarded_from_message_id,
                     created_at,
                     edited_at,
                     deleted_at,
@@ -110,6 +165,44 @@ const messageRepository = {
                 [
                     messageId,
                     senderId
+                ]
+            );
+
+        return result.rows[0] || null;
+    },
+
+    async editMessage(
+        messageId,
+        senderId,
+        content
+    ) {
+        const result =
+            await pool.query(
+                `
+                UPDATE messages
+                SET
+                    content = $3,
+                    edited_at = NOW()
+                WHERE id = $1
+                  AND sender_id = $2
+                  AND deleted_at IS NULL
+                RETURNING
+                    id,
+                    conversation_id,
+                    sender_id,
+                    message_type,
+                    content,
+                    reply_to_message_id,
+                    forwarded_from_message_id,
+                    created_at,
+                    edited_at,
+                    deleted_at,
+                    expires_at
+                `,
+                [
+                    messageId,
+                    senderId,
+                    content
                 ]
             );
 
@@ -131,6 +224,7 @@ const messageRepository = {
                     message_type,
                     content,
                     reply_to_message_id,
+                    forwarded_from_message_id,
                     created_at,
                     edited_at,
                     deleted_at,

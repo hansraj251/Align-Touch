@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS messages (
     message_type VARCHAR(20) NOT NULL DEFAULT 'text',
     content TEXT,
     reply_to_message_id BIGINT,
+    forwarded_from_message_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     edited_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,

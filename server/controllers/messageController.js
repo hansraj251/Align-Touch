@@ -42,6 +42,40 @@ const messageController = {
         }
     },
 
+    async forwardMessage(
+        req,
+        res
+    ) {
+        try {
+            const {
+                messageId,
+                targetConversationId
+            } = req.body;
+
+            const message =
+                await messageService.forwardMessage(
+                    messageId,
+                    targetConversationId,
+                    req.user.userId
+                );
+
+            return res.status(201).json({
+                success: true,
+                message
+            });
+        } catch (error) {
+            console.error(
+                "Forward message error:",
+                error
+            );
+
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    },
+
     async deleteMessageForEveryone(
         req,
         res
@@ -60,6 +94,35 @@ const messageController = {
         } catch (error) {
             console.error(
                 "Delete message error:",
+                error
+            );
+
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    },
+
+    async editMessage(
+        req,
+        res
+    ) {
+        try {
+            const message =
+                await messageService.editMessage(
+                    req.params.messageId,
+                    req.user.userId,
+                    req.body.content
+                );
+
+            return res.status(200).json({
+                success: true,
+                message
+            });
+        } catch (error) {
+            console.error(
+                "Edit message error:",
                 error
             );
 

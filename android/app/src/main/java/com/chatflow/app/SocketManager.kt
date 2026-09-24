@@ -118,6 +118,46 @@ class SocketManager {
         }
     }
 
+    fun forwardMessage(
+        messageId: String,
+        targetConversationId: String
+    ) {
+        Log.d(
+            "ChatFlowSocket",
+            "forwardMessage called, connected=${socket?.connected()}"
+        )
+
+        val data =
+            JSONObject().apply {
+                put(
+                    "messageId",
+                    messageId
+                )
+                put(
+                    "targetConversationId",
+                    targetConversationId
+                )
+            }
+
+        if (socket?.connected() != true) {
+            Log.e(
+                "ChatFlowSocket",
+                "Cannot forward message: socket is not connected"
+            )
+            return
+        }
+
+        Log.d(
+            "ChatFlowSocket",
+            "Emitting forward_message: $data"
+        )
+
+        socket?.emit(
+            "forward_message",
+            data
+        )
+    }
+
     fun sendMessage(
         conversationId: String,
         content: String,
@@ -230,6 +270,66 @@ class SocketManager {
                 )
 
                 onMessageDeleted(data)
+            }
+        }
+    }
+
+    fun editMessage(
+        messageId: String,
+        content: String
+    ) {
+        Log.d(
+            "ChatFlowSocket",
+            "Editing message: $messageId"
+        )
+
+        if (socket?.connected() != true) {
+            Log.e(
+                "ChatFlowSocket",
+                "Cannot edit message: socket is not connected"
+            )
+            return
+        }
+
+        val data =
+            JSONObject().apply {
+                put(
+                    "messageId",
+                    messageId
+                )
+                put(
+                    "content",
+                    content
+                )
+            }
+
+        socket?.emit(
+            "edit_message",
+            data
+        )
+
+        Log.d(
+            "ChatFlowSocket",
+            "edit_message emit completed: $data"
+        )
+    }
+
+    fun listenForMessageEdited(
+        onMessageEdited: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "message_edited"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                Log.d(
+                    "ChatFlowSocket",
+                    "message_edited received: $data"
+                )
+
+                onMessageEdited(data)
             }
         }
     }

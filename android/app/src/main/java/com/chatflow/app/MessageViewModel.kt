@@ -440,6 +440,68 @@ class MessageViewModel(
                     }
                 }
 
+                socketManager.listenForMessageEdited { data ->
+                    try {
+                        val messageId =
+                            data.getString(
+                                "id"
+                            )
+
+                        val content =
+                            if (
+                                data.isNull(
+                                    "content"
+                                )
+                            ) {
+                                null
+                            } else {
+                                data.getString(
+                                    "content"
+                                )
+                            }
+
+                        val editedAt =
+                            if (
+                                data.isNull(
+                                    "edited_at"
+                                )
+                            ) {
+                                null
+                            } else {
+                                data.getString(
+                                    "edited_at"
+                                )
+                            }
+
+                        val updatedMessages =
+                            _uiState.value.messages.map { message ->
+                                if (
+                                    message.id ==
+                                    messageId
+                                ) {
+                                    message.copy(
+                                        content = content,
+                                        edited_at = editedAt
+                                    )
+                                } else {
+                                    message
+                                }
+                            }
+
+                        _uiState.value =
+                            _uiState.value.copy(
+                                messages =
+                                    updatedMessages
+                            )
+                    } catch (error: Exception) {
+                        Log.e(
+                            "ChatFlowMessage",
+                            "Message edit error",
+                            error
+                        )
+                    }
+                }
+
                 socketManager.listenForNewMessages { data ->
                     try {
                         val message =
@@ -482,6 +544,18 @@ class MessageViewModel(
                                     } else {
                                         data.getString(
                                             "reply_to_message_id"
+                                        )
+                                    },
+                                forwarded_from_message_id =
+                                    if (
+                                        data.isNull(
+                                            "forwarded_from_message_id"
+                                        )
+                                    ) {
+                                        null
+                                    } else {
+                                        data.getString(
+                                            "forwarded_from_message_id"
                                         )
                                     },
                                 created_at =
@@ -683,11 +757,31 @@ class MessageViewModel(
         )
     }
 
+    fun editMessage(
+        messageId: String,
+        content: String
+    ) {
+        socketManager.editMessage(
+            messageId,
+            content
+        )
+    }
+
     fun deleteMessage(
         messageId: String
     ) {
         socketManager.deleteMessage(
             messageId
+        )
+    }
+
+    fun forwardMessage(
+        messageId: String,
+        targetConversationId: String
+    ) {
+        socketManager.forwardMessage(
+            messageId = messageId,
+            targetConversationId = targetConversationId
         )
     }
 

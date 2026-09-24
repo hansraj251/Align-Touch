@@ -339,6 +339,62 @@ io.on(
         );
 
         socket.on(
+            "forward_message",
+            async (data) => {
+                console.log(
+                    "Socket forward_message received:",
+                    data,
+                    "user:",
+                    userId
+                );
+
+                try {
+                    const {
+                        messageId,
+                        targetConversationId
+                    } = data || {};
+
+                    const message =
+                        await messageService.forwardMessage(
+                            messageId,
+                            targetConversationId,
+                            userId
+                        );
+
+                    const conversationRoom =
+                        `conversation_${targetConversationId}`;
+
+                    console.log(
+                        "Broadcasting forwarded new_message:",
+                        message,
+                        "room:",
+                        conversationRoom
+                    );
+
+                    io.to(
+                        conversationRoom
+                    ).emit(
+                        "new_message",
+                        message
+                    );
+                } catch (error) {
+                    console.error(
+                        "Socket forward message error:",
+                        error
+                    );
+
+                    socket.emit(
+                        "socket_error",
+                        {
+                            message:
+                                error.message
+                        }
+                    );
+                }
+            }
+        );
+
+        socket.on(
             "delete_message",
             async (data) => {
                 console.log(
@@ -378,6 +434,62 @@ io.on(
                 } catch (error) {
                     console.error(
                         "Socket delete message error:",
+                        error
+                    );
+
+                    socket.emit(
+                        "socket_error",
+                        {
+                            message:
+                                error.message
+                        }
+                    );
+                }
+            }
+        );
+
+        socket.on(
+            "edit_message",
+            async (data) => {
+                console.log(
+                    "Socket edit_message received:",
+                    data,
+                    "user:",
+                    userId
+                );
+
+                try {
+                    const {
+                        messageId,
+                        content
+                    } = data || {};
+
+                    const message =
+                        await messageService.editMessage(
+                            messageId,
+                            userId,
+                            content
+                        );
+
+                    const conversationRoom =
+                        `conversation_${message.conversation_id}`;
+
+                    console.log(
+                        "Broadcasting message_edited:",
+                        message,
+                        "room:",
+                        conversationRoom
+                    );
+
+                    io.to(
+                        conversationRoom
+                    ).emit(
+                        "message_edited",
+                        message
+                    );
+                } catch (error) {
+                    console.error(
+                        "Socket edit message error:",
                         error
                     );
 

@@ -327,6 +327,12 @@ fun LoginScreen(
 @Composable
 fun ChatFlowApp() {
 
+    val conversationViewModel: ConversationViewModel =
+        viewModel()
+
+    val messageViewModel: MessageViewModel =
+        viewModel()
+
     var selectedConversation by
         remember {
             mutableStateOf<Conversation?>(null)
@@ -362,6 +368,16 @@ fun ChatFlowApp() {
             mutableStateOf(false)
         }
 
+    var showForwardPicker by
+        remember {
+            mutableStateOf(false)
+        }
+
+    var messageToForward by
+        remember {
+            mutableStateOf<Message?>(null)
+        }
+
     val context =
         androidx.compose.ui.platform.LocalContext.current
 
@@ -372,6 +388,7 @@ fun ChatFlowApp() {
             showGroupInfo ||
             showProfile ||
             showNewChat ||
+            showForwardPicker ||
             selectedConversation != null
     ) {
         when {
@@ -393,6 +410,11 @@ fun ChatFlowApp() {
 
             showNewChat -> {
                 showNewChat = false
+            }
+
+            showForwardPicker -> {
+                showForwardPicker = false
+                messageToForward = null
             }
 
             selectedConversation != null -> {
@@ -431,7 +453,135 @@ fun ChatFlowApp() {
                         .weight(1f)
             ) {
 
-                if (showAddContact) {
+                if (showForwardPicker) {
+
+                    val forwardUiState by
+                        conversationViewModel
+                            .uiState
+                            .collectAsState()
+
+                    LaunchedEffect(showForwardPicker) {
+                        conversationViewModel
+                            .loadConversations()
+                    }
+
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                    ) {
+
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = 12.dp,
+                                        vertical = 8.dp
+                                    ),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+
+                            TextButton(
+                                onClick = {
+                                    showForwardPicker = false
+                                    messageToForward = null
+                                }
+                            ) {
+                Text("‹")
+                            }
+
+                            Text(
+                                text = "Forward message",
+                                style =
+                                    MaterialTheme
+                                        .typography
+                                        .titleLarge
+                            )
+                        }
+
+                        if (forwardUiState.loading) {
+
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize(),
+                                contentAlignment =
+                                    Alignment.Center
+                            ) {
+                CircularProgressIndicator()
+                            }
+
+                        } else {
+
+                            LazyColumn(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                            ) {
+
+                                items(
+                                    forwardUiState
+                                        .conversations
+                                        .filter {
+                                            it.id !=
+                                                selectedConversation?.id
+                                        }
+                                ) { conversation ->
+
+                                    val displayName =
+                                        if (conversation.type == "group") {
+                                            conversation.title
+                                                ?.takeIf { it.isNotBlank() }
+                                                ?: "Group"
+                                        } else {
+                                            conversation
+                                                .other_user_display_name
+                                                .ifBlank {
+                                                    conversation
+                                                        .other_user_phone
+                                                        ?: "Unknown"
+                                                }
+                                        }
+
+                                    Row(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    messageToForward?.let { message ->
+                                                        messageViewModel.forwardMessage(
+                                                            messageId = message.id,
+                                                            targetConversationId = conversation.id
+                                                        )
+                                                    }
+
+                                                    showForwardPicker = false
+                                                    messageToForward = null
+                                                }
+                                                .padding(
+                                                    horizontal = 16.dp,
+                                                    vertical = 14.dp
+                                                ),
+                                        verticalAlignment =
+                                            Alignment.CenterVertically
+                                    ) {
+
+                                        Text(
+                                            text = displayName,
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .bodyLarge
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                } else if (showAddContact) {
                     AddContactScreen(
                         contactName =
                             selectedConversation
@@ -561,6 +711,7 @@ fun ChatFlowApp() {
                     ) {
 
                         ConversationListScreen(
+                            viewModel = conversationViewModel,
                             onConversationClick = {
                                 selectedConversation = it
                             },
@@ -606,6 +757,11 @@ fun ChatFlowApp() {
                                     showAddContact = true
                                 }
                             },
+                            onForwardMessage = { message ->
+                                messageToForward = message
+                                showForwardPicker = true
+                            },
+
                             onBack = {
                                 selectedConversation = null
                             }
@@ -2063,6 +2219,7 @@ fun ChatScreen(
     conversationType: String,
     onContactClick: () -> Unit,
     onBack: () -> Unit,
+    onForwardMessage: (Message) -> Unit,
     viewModel: MessageViewModel =
         viewModel()
 ) {
@@ -2089,6 +2246,9 @@ fun ChatScreen(
         mutableStateOf<String?>(null)
     }
     var replyingToMessage by remember {
+        mutableStateOf<Message?>(null)
+    }
+    var editingMessage by remember {
         mutableStateOf<Message?>(null)
     }
     var expiryMenuExpanded by remember {
@@ -2416,6 +2576,16 @@ fun ChatScreen(
                                     }
                                 }
 
+                                    if (message.forwarded_from_message_id != null) {
+                                        Text(
+                                            text = "↗ Forwarded",
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .labelSmall
+                                        )
+                                    }
+
                                 Text(
                                     text =
                                         if (
@@ -2522,6 +2692,42 @@ fun ChatScreen(
                                                     null
                                             }
                                         )
+
+                                        if (message.deleted_at == null) {
+                                            androidx.compose.material3.DropdownMenuItem(
+                                                text = {
+                                                    Text("Forward")
+                                                },
+                                                onClick = {
+                                                    onForwardMessage(
+                                                        message
+                                                    )
+                                                    reactionMenuMessageId = null
+                                                }
+                                            )
+                                        }
+
+                                        if (
+                                            isMine &&
+                                            message.deleted_at == null
+                                        ) {
+                                            androidx.compose.material3.DropdownMenuItem(
+                                                text = {
+                                                    Text("Edit")
+                                                },
+                                                onClick = {
+                                                    editingMessage =
+                                                        message
+
+                                                    messageText =
+                                                        message.content
+                                                            ?: ""
+
+                                                    reactionMenuMessageId =
+                                                        null
+                                                }
+                                            )
+                                        }
 
                                         if (
                                             isMine &&
@@ -2678,6 +2884,79 @@ fun ChatScreen(
                                 .surfaceVariant
                     )
             ) {
+
+                if (editingMessage != null) {
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = 8.dp,
+                                    top = 6.dp,
+                                    end = 8.dp
+                                ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .surface
+                            )
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = 10.dp,
+                                        top = 6.dp,
+                                        end = 4.dp,
+                                        bottom = 6.dp
+                                    ),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier =
+                                    Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = "✏ Edit message",
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .labelMedium
+                                )
+
+                                Text(
+                                    text =
+                                        editingMessage
+                                            ?.content
+                                            ?: "",
+                                    maxLines = 2,
+                                    overflow =
+                                        androidx.compose.ui.text.style
+                                            .TextOverflow.Ellipsis,
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .bodySmall
+                                )
+                            }
+
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    editingMessage =
+                                        null
+                                    messageText =
+                                        ""
+                                }
+                            ) {
+                                Text("×")
+                            }
+                        }
+                    }
+                }
 
                 if (replyingToMessage != null) {
                     Card(
@@ -2896,6 +3175,21 @@ fun ChatScreen(
                 onClick = {
 
                     if (messageText.isNotBlank()) {
+
+                        if (editingMessage != null) {
+                            viewModel.editMessage(
+                                messageId =
+                                    editingMessage!!.id,
+                                content =
+                                    messageText
+                            )
+
+                            editingMessage =
+                                null
+                            messageText =
+                                ""
+                            return@Button
+                        }
                         val expiresAt =
                             selectedExpirySeconds?.let { seconds ->
                                 java.time.Instant

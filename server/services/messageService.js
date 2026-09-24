@@ -100,6 +100,77 @@ const messageService = {
         });
     },
 
+    async forwardMessage(
+        messageId,
+        targetConversationId,
+        userId
+    ) {
+        const message =
+            await messageRepository.getById(
+                messageId
+            );
+
+        if (!message) {
+            throw new Error(
+                "Message not found"
+            );
+        }
+
+        const sourceIsMember =
+            await conversationRepository.isMember(
+                message.conversation_id,
+                userId
+            );
+
+        if (!sourceIsMember) {
+            throw new Error(
+                "You are not a member of the source conversation"
+            );
+        }
+
+        const targetIsMember =
+            await conversationRepository.isMember(
+                targetConversationId,
+                userId
+            );
+
+        if (!targetIsMember) {
+            throw new Error(
+                "You are not a member of the target conversation"
+            );
+        }
+
+        if (message.deleted_at) {
+            throw new Error(
+                "Deleted messages cannot be forwarded"
+            );
+        }
+
+        if (
+            message.expires_at &&
+            new Date(message.expires_at).getTime() <=
+                Date.now()
+        ) {
+            throw new Error(
+                "Expired messages cannot be forwarded"
+            );
+        }
+
+        if (!message.content) {
+            throw new Error(
+                "Message content cannot be forwarded"
+            );
+        }
+
+        return messageRepository.forwardMessage({
+            conversationId: targetConversationId,
+            senderId: userId,
+            messageType: message.message_type,
+            content: message.content,
+            forwardedFromMessageId: message.id
+        });
+    },
+
     async deleteMessageForEveryone(
         messageId,
         userId
@@ -155,6 +226,74 @@ const messageService = {
         }
 
         return deletedMessage;
+    },
+
+    async editMessage(
+        messageId,
+        userId,
+        content
+    ) {
+        const message =
+            await messageRepository.getById(
+                messageId
+            );
+
+        if (!message) {
+            throw new Error(
+                "Message not found"
+            );
+        }
+
+        const isMember =
+            await conversationRepository.isMember(
+                message.conversation_id,
+                userId
+            );
+
+        if (!isMember) {
+            throw new Error(
+                "You are not a member of this conversation"
+            );
+        }
+
+        if (
+            String(message.sender_id) !==
+            String(userId)
+        ) {
+            throw new Error(
+                "Only the sender can edit this message"
+            );
+        }
+
+        if (message.deleted_at) {
+            throw new Error(
+                "Deleted messages cannot be edited"
+            );
+        }
+
+        if (
+            typeof content !== "string" ||
+            !content.trim()
+        ) {
+            throw new Error(
+                "Message content cannot be empty"
+            );
+        }
+
+        const editedMessage =
+            await messageRepository.editMessage(
+                messageId,
+                userId,
+                content.trim()
+            );
+
+        if (!editedMessage) {
+            throw new Error(
+                "Message could not be edited"
+            );
+        }
+
+        return editedMessage;
     },
 
     async listMessages(
