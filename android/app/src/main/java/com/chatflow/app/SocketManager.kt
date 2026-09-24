@@ -40,7 +40,7 @@ class SocketManager {
 
             socket =
                 IO.socket(
-                    "http://localhost:3000",
+                    "http://10.85.201.156:3000",
                     options
                 )
 
@@ -77,6 +77,36 @@ class SocketManager {
                 error.message
                     ?: "Socket connection failed"
             )
+        }
+    }
+
+    fun listenForUserOnline(
+        onUserOnline: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "user_online"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                onUserOnline(data)
+            }
+        }
+    }
+
+    fun listenForUserOffline(
+        onUserOffline: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "user_offline"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                onUserOffline(data)
+            }
         }
     }
 
@@ -437,6 +467,62 @@ class SocketManager {
                 )
 
                 onReactionRemoved(data)
+            }
+        }
+    }
+
+    fun startTyping(
+        conversationId: String
+    ) {
+        if (socket?.connected() != true) {
+            return
+        }
+
+        socket?.emit(
+            "typing_start",
+            conversationId
+        )
+    }
+
+    fun stopTyping(
+        conversationId: String
+    ) {
+        if (socket?.connected() != true) {
+            return
+        }
+
+        socket?.emit(
+            "typing_stop",
+            conversationId
+        )
+    }
+
+    fun listenForUserTyping(
+        onTyping: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "user_typing"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                onTyping(data)
+            }
+        }
+    }
+
+    fun listenForUserStoppedTyping(
+        onStoppedTyping: (JSONObject) -> Unit
+    ) {
+        socket?.on(
+            "user_stopped_typing"
+        ) { args ->
+            val data =
+                args.firstOrNull()
+
+            if (data is JSONObject) {
+                onStoppedTyping(data)
             }
         }
     }

@@ -4,6 +4,9 @@ const conversationRepository =
 const messageRepository =
     require("../repositories/messageRepository");
 
+const messageAttachmentRepository =
+    require("../repositories/messageAttachmentRepository");
+
 const messageService = {
 
     async sendTextMessage({
@@ -313,8 +316,28 @@ const messageService = {
             );
         }
 
-        return messageRepository.listByConversation(
-            conversationId
+        const messages =
+            await messageRepository.listByConversation(
+                conversationId
+            );
+
+        return Promise.all(
+            messages.map(
+                async (message) => {
+
+                    const attachments =
+                        await messageAttachmentRepository
+                            .getByMessageId(
+                                message.id
+                            );
+
+                    return {
+                        ...message,
+                        attachments
+                    };
+
+                }
+            )
         );
     }
 };

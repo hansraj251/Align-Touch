@@ -27,6 +27,9 @@ const conversationRoutes =
 const messageRoutes =
     require("./routes/messageRoutes");
 
+const messageUploadRoutes =
+    require("./routes/messageUploadRoutes");
+
 const messageReactionRoutes =
     require("./routes/messageReactionRoutes");
 
@@ -108,6 +111,11 @@ app.use(
 app.use(
     "/api/messages",
     messageRoutes
+);
+
+app.use(
+    "/api/message-uploads",
+    messageUploadRoutes(io)
 );
 
 app.use(

@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 data class ConversationUiState(
     val loading: Boolean = false,
     val conversations: List<Conversation> = emptyList(),
+    val onlineUserIds: Set<String> = emptySet(),
     val message: String = ""
 )
 
@@ -24,6 +25,9 @@ class ConversationViewModel(
 
     private val sessionManager =
         SessionManager(application)
+
+    private val socketManager =
+        SocketManager()
 
     private val _uiState =
         MutableStateFlow(
@@ -100,6 +104,58 @@ class ConversationViewModel(
                         conversations =
                             response.conversations
                     )
+
+                socketManager.connect(
+                    token = token,
+                    onConnected = {
+                        socketManager.listenForUserOnline { data ->
+                            try {
+                                val userId =
+                                    data.getString(
+                                        "userId"
+                                    )
+
+                                _uiState.value =
+                                    _uiState.value.copy(
+                                        onlineUserIds =
+                                            _uiState.value.onlineUserIds +
+                                                userId
+                                    )
+                            } catch (error: Exception) {
+                                android.util.Log.e(
+                                    "ChatFlowConversations",
+                                    "User online event error",
+                                    error
+                                )
+                            }
+                        }
+
+                        socketManager.listenForUserOffline { data ->
+                            try {
+                                val userId =
+                                    data.getString(
+                                        "userId"
+                                    )
+
+                                _uiState.value =
+                                    _uiState.value.copy(
+                                        onlineUserIds =
+                                            _uiState.value.onlineUserIds
+                                                .filterNot {
+                                                    it == userId
+                                                }
+                                                .toSet()
+                                    )
+                            } catch (error: Exception) {
+                                android.util.Log.e(
+                                    "ChatFlowConversations",
+                                    "User offline event error",
+                                    error
+                                )
+                            }
+                        }
+                    }
+                )
 
             } catch (error: Exception) {
 

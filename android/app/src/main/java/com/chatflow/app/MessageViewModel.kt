@@ -1,5 +1,14 @@
 package com.chatflow.app
 
+import android.net.Uri
+
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+
+import okhttp3.MultipartBody
+
+import okhttp3.RequestBody.Companion.toRequestBody
+
+
 import android.util.Log
 
 import android.app.Application
@@ -7,6 +16,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.chatflow.app.data.Message
 import com.chatflow.app.data.MessageRepository
+
+import com.chatflow.app.data.MessageAttachmentRepository
 import com.chatflow.app.data.MessageReceipt
 import com.chatflow.app.data.MessageReaction
 import com.chatflow.app.data.SendMessageRequest
@@ -26,6 +37,11 @@ data class MessageUiState(
 
     val messageReceipts: Map<String, MessageReceipt> = emptyMap(),
     val messageReactions: Map<String, List<MessageReaction>> = emptyMap(),
+    val typingUserIds: Set<String> = emptySet(),
+
+    val uploadingAttachment: Boolean = false,
+
+    val attachmentMessage: String = "",
     val message: String = ""
 )
 
@@ -35,6 +51,9 @@ class MessageViewModel(
 
     private val repository =
         MessageRepository()
+
+    private val attachmentRepository =
+        MessageAttachmentRepository()
 
     private val sessionManager =
         SessionManager(application)
@@ -160,6 +179,74 @@ class MessageViewModel(
         socketManager.connect(
             token = token,
             onConnected = {
+                socketManager.listenForUserTyping { data ->
+                    try {
+                        val typingConversationId =
+                            data.getString(
+                                "conversationId"
+                            )
+
+                        val typingUserId =
+                            data.getString(
+                                "userId"
+                            )
+
+                        if (
+                            typingConversationId ==
+                                conversationId
+                        ) {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    typingUserIds =
+                                        _uiState.value.typingUserIds +
+                                            typingUserId
+                                )
+                        }
+                    } catch (error: Exception) {
+                        Log.e(
+                            "ChatFlowMessage",
+                            "Typing start error",
+                            error
+                        )
+                    }
+                }
+
+                socketManager.listenForUserStoppedTyping { data ->
+                    try {
+                        val stoppedConversationId =
+                            data.getString(
+                                "conversationId"
+                            )
+
+                        val typingUserId =
+                            data.getString(
+                                "userId"
+                            )
+
+                        if (
+                            stoppedConversationId ==
+                                conversationId
+                        ) {
+                            _uiState.value =
+                                _uiState.value.copy(
+                                    typingUserIds =
+                                        _uiState.value.typingUserIds
+                                            .filterNot {
+                                                it ==
+                                                    typingUserId
+                                            }
+                                            .toSet()
+                                )
+                        }
+                    } catch (error: Exception) {
+                        Log.e(
+                            "ChatFlowMessage",
+                            "Typing stop error",
+                            error
+                        )
+                    }
+                }
+
                 socketManager.listenForMessageDelivered { data ->
                     try {
                         val receipt =
@@ -785,6 +872,22 @@ class MessageViewModel(
         )
     }
 
+    fun startTyping(
+        conversationId: String
+    ) {
+        socketManager.startTyping(
+            conversationId
+        )
+    }
+
+    fun stopTyping(
+        conversationId: String
+    ) {
+        socketManager.stopTyping(
+            conversationId
+        )
+    }
+
     fun sendMessage(
         conversationId: String,
         content: String,
@@ -853,4 +956,229 @@ class MessageViewModel(
                 )
         }
     }
+
+    fun uploadAttachment(
+        conversationId: String,
+        uri: Uri
+    ) {
+        val token =
+            sessionManager.getToken()
+
+        if (token.isNullOrBlank()) {
+            _uiState.value =
+                _uiState.value.copy(
+                    attachmentMessage =
+                        "Login session not found"
+                )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value =
+                _uiState.value.copy(
+                    uploadingAttachment = true,
+                    attachmentMessage = ""
+                )
+
+            try {
+                val resolver =
+                    getApplication<Application>()
+                        .contentResolver
+
+                val mimeType =
+                    resolver.getType(uri)
+                        ?: "application/octet-stream"
+
+                val originalName =
+                    resolver.query(
+                        uri,
+                        arrayOf(
+                            android.provider.OpenableColumns.DISPLAY_NAME
+                        ),
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            cursor.getString(0)
+                        } else {
+                            null
+                        }
+                    } ?: "attachment"
+
+                val bytes =
+                    resolver.openInputStream(uri)
+                        ?.use { inputStream ->
+                            inputStream.readBytes()
+                        }
+                        ?: throw Exception(
+                            "Unable to read selected file"
+                        )
+
+                val fileBody =
+                    bytes.toRequestBody(
+                        mimeType.toMediaTypeOrNull()
+                    )
+
+                val filePart =
+                    MultipartBody.Part.createFormData(
+                        "file",
+                        originalName,
+                        fileBody
+                    )
+
+                val conversationBody =
+                    conversationId.toRequestBody(
+                        "text/plain".toMediaTypeOrNull()
+                    )
+
+                val response =
+                    attachmentRepository
+                        .uploadAttachment(
+                            conversationId =
+                                conversationBody,
+                            file =
+                                filePart,
+                            token =
+                                token
+                        )
+
+                if (!response.success) {
+                    throw Exception(
+                        "Attachment upload failed"
+                    )
+                }
+
+                socketMessages.add(
+                    response.message
+                )
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        uploadingAttachment = false,
+                        attachmentMessage = "",
+                        messages =
+                            socketMessages.toList()
+                    )
+            } catch (error: Exception) {
+                Log.e(
+                    "ChatFlowMessage",
+                    "Attachment upload error",
+                    error
+                )
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        uploadingAttachment = false,
+                        attachmentMessage =
+                            error.message
+                                ?: "Attachment upload failed"
+                    )
+            }
+        }
+    }
+
+
+    fun downloadAttachment(
+        attachment: com.chatflow.app.data.MessageAttachment
+    ) {
+
+        val token =
+            sessionManager.getToken()
+
+        if (token.isNullOrBlank()) {
+
+            _uiState.value =
+                _uiState.value.copy(
+                    attachmentMessage =
+                        "Login session not found"
+                )
+
+            return
+        }
+
+        viewModelScope.launch {
+
+            try {
+
+                val responseBody =
+                    attachmentRepository
+                        .downloadAttachment(
+                            attachmentId =
+                                attachment.id,
+                            token =
+                                token
+                        )
+
+                val attachmentDirectory =
+                    java.io.File(
+                        getApplication<Application>()
+                            .cacheDir,
+                        "chatflow_attachments"
+                    )
+
+                if (!attachmentDirectory.exists()) {
+
+                    attachmentDirectory.mkdirs()
+
+                }
+
+                val safeFileName =
+                    attachment.original_name
+                        .replace(
+                            Regex(
+                                "[^a-zA-Z0-9._-]"
+                            ),
+                            "_"
+                        )
+
+                val outputFile =
+                    java.io.File(
+                        attachmentDirectory,
+                        "${attachment.id}_$safeFileName"
+                    )
+
+                responseBody
+                    .byteStream()
+                    .use { inputStream ->
+
+                        outputFile
+                            .outputStream()
+                            .use { outputStream ->
+
+                                inputStream.copyTo(
+                                    outputStream
+                                )
+
+                            }
+
+                    }
+
+                Log.d(
+                    "ChatFlowMessage",
+                    "Attachment downloaded: ${outputFile.absolutePath}"
+                )
+
+            } catch (error: Exception) {
+
+                Log.e(
+                    "ChatFlowMessage",
+                    "Attachment download error",
+                    error
+                )
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        attachmentMessage =
+                            error.message
+                                ?: "Attachment download failed"
+                    )
+
+            }
+
+        }
+
+    }
+
+
 }

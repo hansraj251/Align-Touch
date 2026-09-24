@@ -80,6 +80,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -738,6 +739,18 @@ fun ChatFlowApp() {
                             contactId =
                                 selectedConversation!!
                                     .contact_id,
+                            otherUserId =
+                                selectedConversation!!
+                                    .other_user_id,
+                            onlineUserIds =
+                                conversationViewModel
+                                    .uiState
+                                    .collectAsState()
+                                    .value
+                                    .onlineUserIds,
+                            lastSeenAt =
+                                selectedConversation!!
+                                    .other_user_last_seen_at,
                             conversationType =
                                 selectedConversation!!
                                     .type,
@@ -2210,12 +2223,52 @@ fun NewChatScreen(
         }
     }
 
+private fun formatLastSeen(lastSeenAt: String?): String {
+    if (lastSeenAt.isNullOrBlank()) {
+        return "Offline"
+    }
+
+    return try {
+        val instant =
+            java.time.Instant.parse(lastSeenAt)
+
+        val zoneId =
+            java.time.ZoneId.systemDefault()
+
+        val lastSeen =
+            instant.atZone(zoneId)
+
+        val now =
+            java.time.ZonedDateTime.now(zoneId)
+
+        if (
+            lastSeen.toLocalDate() ==
+                now.toLocalDate()
+        ) {
+            lastSeen.format(
+                java.time.format.DateTimeFormatter
+                    .ofPattern("HH:mm")
+            )
+        } else {
+            lastSeen.format(
+                java.time.format.DateTimeFormatter
+                    .ofPattern("dd.MM.yyyy")
+            )
+        }
+    } catch (error: Exception) {
+        lastSeenAt
+    }
+}
+
 @Composable
 fun ChatScreen(
     conversationId: String,
     contactName: String,
     contactPhone: String?,
     contactId: String?,
+    otherUserId: String,
+    onlineUserIds: Set<String>,
+    lastSeenAt: String?,
     conversationType: String,
     onContactClick: () -> Unit,
     onBack: () -> Unit,
@@ -2251,6 +2304,27 @@ fun ChatScreen(
     var editingMessage by remember {
         mutableStateOf<Message?>(null)
     }
+    var isTyping by remember {
+        mutableStateOf(false)
+    }
+    LaunchedEffect(
+        messageText,
+        isTyping
+    ) {
+        if (!isTyping || messageText.isBlank()) {
+            return@LaunchedEffect
+        }
+
+        delay(1500)
+
+        if (messageText.isNotBlank()) {
+            viewModel.stopTyping(
+                conversationId
+            )
+            isTyping = false
+        }
+    }
+
     var expiryMenuExpanded by remember {
         mutableStateOf(false)
     }
@@ -2350,15 +2424,41 @@ fun ChatScreen(
                             .titleMedium
                 )
 
-                Text(
-                    text =
-                        contactPhone
-                            ?: "No phone number",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .bodySmall
-                )
+                if (conversationType == "direct") {
+                    Text(
+                        text =
+                            if (
+                                onlineUserIds.contains(
+                                    otherUserId
+                                )
+                            ) {
+                                "Online"
+                            } else if (
+                                !lastSeenAt.isNullOrBlank()
+                            ) {
+                                "Last seen " +
+                                    formatLastSeen(
+                                        lastSeenAt
+                                    )
+                            } else {
+                                "Offline"
+                            },
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall
+                    )
+                } else {
+                    Text(
+                        text =
+                            contactPhone
+                                ?: "No phone number",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodySmall
+                    )
+                }
             }
 
             androidx.compose.material3.TextButton(
@@ -2601,6 +2701,102 @@ fun ChatScreen(
                                             .typography
                                             .bodyLarge
                                 )
+
+
+                                message.attachments.forEach { attachment ->
+
+                                    Card(
+
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(
+                                                    bottom = 6.dp
+                                                )
+                                                .clickable {
+
+                                                    viewModel
+                                                        .downloadAttachment(
+                                                            attachment
+                                                        )
+
+                                                },
+
+                                        colors =
+                                            CardDefaults.cardColors(
+
+                                                containerColor =
+                                                    MaterialTheme
+                                                        .colorScheme
+                                                        .surface
+
+                                            ),
+
+                                        shape =
+                                            RoundedCornerShape(
+                                                8.dp
+                                            )
+
+                                    ) {
+
+                                        Row(
+
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(
+                                                        10.dp
+                                                    ),
+
+                                            verticalAlignment =
+                                                Alignment.CenterVertically
+
+                                        ) {
+
+                                            Text(
+                                                text = "📄",
+                                                fontSize = 24.sp
+                                            )
+
+                                            Spacer(
+                                                modifier =
+                                                    Modifier.width(
+                                                        10.dp
+                                                    )
+                                            )
+
+                                            Column(
+                                                modifier =
+                                                    Modifier.weight(
+                                                        1f
+                                                    )
+                                            ) {
+
+                                                Text(
+                                                    text =
+                                                        attachment.original_name,
+                                                    style =
+                                                        MaterialTheme
+                                                            .typography
+                                                            .bodyMedium
+                                                )
+
+                                                Text(
+                                                    text =
+                                                        "${attachment.file_size} bytes",
+                                                    style =
+                                                        MaterialTheme
+                                                            .typography
+                                                            .labelSmall
+                                                )
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                }
 
                                 Spacer(
                                     modifier =
@@ -3050,6 +3246,20 @@ fun ChatScreen(
                         value = messageText,
                         onValueChange = {
                             messageText = it
+
+                            if (it.isBlank()) {
+                                if (isTyping) {
+                                    viewModel.stopTyping(
+                                        conversationId
+                                    )
+                                    isTyping = false
+                                }
+                            } else if (!isTyping) {
+                                viewModel.startTyping(
+                                    conversationId
+                                )
+                                isTyping = true
+                            }
                         },
                         modifier =
                             Modifier
@@ -3164,6 +3374,25 @@ fun ChatScreen(
                         Text("📎")
                     }
                 }
+            }
+
+            if (uiState.typingUserIds.isNotEmpty()) {
+                Text(
+                    text = "Typing...",
+                    modifier =
+                        Modifier.padding(
+                            horizontal = 12.dp,
+                            vertical = 4.dp
+                        ),
+                    style =
+                        MaterialTheme
+                            .typography
+                            .bodySmall,
+                    color =
+                        MaterialTheme
+                            .colorScheme
+                            .onSurfaceVariant
+                )
             }
 
             Spacer(
