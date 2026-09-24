@@ -1,5 +1,8 @@
 package com.chatflow.app.data
 
+import okhttp3.MultipartBody
+import okhttp3.ResponseBody
+
 class UserRepository {
 
     suspend fun getProfile(
@@ -22,6 +25,33 @@ class UserRepository {
             authorization =
                 "Bearer $token"
         )
+    }
+
+
+    suspend fun uploadAvatar(
+        file: MultipartBody.Part,
+        token: String
+    ): ProfileResponse {
+
+        return ApiClient
+            .userAvatarApi
+            .uploadAvatar(
+                file = file,
+                authorization = "Bearer $token"
+            )
+    }
+
+    suspend fun downloadAvatar(
+        userId: String,
+        token: String
+    ): ResponseBody {
+
+        return ApiClient
+            .userAvatarApi
+            .downloadAvatar(
+                userId = userId,
+                authorization = "Bearer $token"
+            )
     }
 
     suspend fun getUsers(

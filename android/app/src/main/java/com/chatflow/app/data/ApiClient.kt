@@ -29,4 +29,15 @@ object ApiClient {
             .create(
                 MessageAttachmentApi::class.java
             )
+    val userAvatarApi: UserAvatarApi =
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(
+                GsonConverterFactory.create()
+            )
+            .build()
+            .create(
+                UserAvatarApi::class.java
+            )
+
 }

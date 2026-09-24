@@ -1,5 +1,7 @@
 package com.chatflow.app
 
+import android.graphics.BitmapFactory
+
 import com.chatflow.app.data.Message
 
 import androidx.compose.foundation.border
@@ -8,12 +10,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import com.chatflow.app.data.Contact
 import com.chatflow.app.data.Conversation
 
 import android.util.Log
 
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -32,6 +36,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,6 +74,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Circle
 
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -1318,34 +1324,138 @@ fun ConversationListScreen(
                                 Alignment.CenterVertically
                         ) {
 
-                            androidx.compose.material3.Surface(
-                                modifier =
-                                    Modifier.size(54.dp),
-                                shape =
-                                    androidx.compose.foundation
-                                        .shape
-                                        .CircleShape
+                            if (
+
+
+                                conversation.type == "direct" &&
+
+
+                                conversation.other_user_id.isNotBlank()
+
+
                             ) {
 
-                                androidx.compose.foundation.layout
-                                    .Box(
-                                        contentAlignment =
-                                            Alignment.Center
-                                    ) {
 
-                                    Text(
-                                        text =
-                                            conversation
-                                                .other_user_display_name
-                                                .orEmpty()
-                                                .take(1)
-                                                .uppercase(),
-                                        style =
-                                            MaterialTheme
-                                                .typography
-                                                .titleLarge
-                                    )
+                            
+
+
+                                UserAvatar(
+
+
+                                    userId =
+
+
+                                        conversation.other_user_id,
+
+
+                                    displayName =
+
+
+                                        conversation
+
+
+                                            .other_user_display_name
+
+
+                                            .orEmpty(),
+
+
+                                    size = 54.dp
+
+
+                                )
+
+
+                            
+
+
+                            } else {
+
+
+                            
+
+
+                                androidx.compose.material3.Surface(
+
+
+                                    modifier =
+
+
+                                        Modifier.size(54.dp),
+
+
+                                    shape =
+
+
+                                        androidx.compose.foundation
+
+
+                                            .shape
+
+
+                                            .CircleShape
+
+
+                                ) {
+
+
+                                    androidx.compose.foundation.layout
+
+
+                                        .Box(
+
+
+                                            contentAlignment =
+
+
+                                                Alignment.Center
+
+
+                                        ) {
+
+
+                                        Text(
+
+
+                                            text =
+
+
+                                                conversation
+
+
+                                                    .other_user_display_name
+
+
+                                                    .orEmpty()
+
+
+                                                    .take(1)
+
+
+                                                    .uppercase(),
+
+
+                                            style =
+
+
+                                                MaterialTheme
+
+
+                                                    .typography
+
+
+                                                    .titleLarge
+
+
+                                        )
+
+
+                                    }
+
+
                                 }
+
+
                             }
 
                             Column(
@@ -1418,6 +1528,131 @@ fun ConversationListScreen(
     }
 }
 
+
+@Composable
+fun UserAvatar(
+    userId: String,
+    displayName: String,
+    size: androidx.compose.ui.unit.Dp
+) {
+
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    var avatarBytes by
+        remember(userId) {
+            mutableStateOf(
+                AvatarCache.read(
+                    context,
+                    userId
+                )
+            )
+        }
+
+    androidx.compose.runtime.LaunchedEffect(
+        userId
+    ) {
+
+        if (avatarBytes != null) {
+            return@LaunchedEffect
+        }
+
+        val token =
+            SessionManager(context)
+                .getToken()
+
+        if (token.isNullOrBlank()) {
+            return@LaunchedEffect
+        }
+
+        try {
+
+            val response =
+                com.chatflow.app.data.UserRepository()
+                    .downloadAvatar(
+                        userId = userId,
+                        token = token
+                    )
+
+            val bytes =
+                response.bytes()
+
+            AvatarCache.write(
+                context = context,
+                userId = userId,
+                bytes = bytes
+            )
+
+            avatarBytes =
+                bytes
+
+        } catch (error: Exception) {
+
+            avatarBytes = null
+        }
+    }
+
+    androidx.compose.material3.Surface(
+        modifier =
+            Modifier.size(size),
+        shape =
+            androidx.compose.foundation.shape
+                .CircleShape
+    ) {
+
+        androidx.compose.foundation.layout.Box(
+            modifier =
+                Modifier.fillMaxSize(),
+            contentAlignment =
+                Alignment.Center
+        ) {
+
+            val bytes =
+                avatarBytes
+
+            val bitmap =
+                remember(bytes) {
+                    bytes?.let {
+                        BitmapFactory.decodeByteArray(
+                            it,
+                            0,
+                            it.size
+                        )
+                    }
+                }
+
+            if (bitmap != null) {
+
+                androidx.compose.foundation.Image(
+                    bitmap =
+                        bitmap.asImageBitmap(),
+                    contentDescription =
+                        "Profile photo",
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(
+                                androidx.compose.foundation
+                                    .shape
+                                    .CircleShape
+                            ),
+                    contentScale =
+                        ContentScale.Crop
+                )
+
+            } else {
+
+                Text(
+                    text =
+                        displayName
+                            .firstOrNull()
+                            ?.uppercase()
+                            ?: "?"
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun NewGroupScreen(
@@ -2374,37 +2609,11 @@ fun ChatScreen(
                 )
             }
 
-            androidx.compose.foundation.layout.Box(
-                modifier =
-                    Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(40.dp)
-                        .clip(
-                            androidx.compose.foundation.shape
-                                .CircleShape
-                        )
-                        .background(
-                            color =
-                                MaterialTheme
-                                    .colorScheme
-                                    .primaryContainer
-                        ),
-                contentAlignment =
-                    Alignment.Center
-            ) {
-                Text(
-                    text =
-                        contactName
-                            .firstOrNull()
-                            ?.uppercase()
-                            ?: "?",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .titleMedium
-                )
-            }
-
+            UserAvatar(
+                userId = otherUserId,
+                displayName = contactName,
+                size = 40.dp
+            )
             Column(
                 modifier =
                     Modifier
@@ -4259,6 +4468,17 @@ fun ProfileScreen(
     val uiState by
         viewModel.uiState.collectAsState()
 
+    val imagePicker =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .GetContent()
+        ) { uri ->
+            if (uri != null) {
+                viewModel.uploadAvatar(uri)
+            }
+        }
+
     var displayName by
         remember {
             mutableStateOf("")
@@ -4286,6 +4506,9 @@ fun ProfileScreen(
 
             about =
                 user.about ?: ""
+            viewModel.loadAvatar(
+                user.id
+            )
         }
     }
 
@@ -4365,6 +4588,11 @@ fun ProfileScreen(
                                 .colorScheme
                                 .primaryContainer
                         )
+                        .clickable(
+                            enabled = !uiState.saving
+                        ) {
+                            imagePicker.launch("image/*")
+                        }
                         .align(
                             Alignment.CenterHorizontally
                         ),
@@ -4372,17 +4600,60 @@ fun ProfileScreen(
                     Alignment.Center
             ) {
 
-                Text(
-                    text =
-                        displayName
-                            .firstOrNull()
-                            ?.uppercase()
-                            ?: "?",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .headlineMedium
-                )
+                val avatarBytes =
+                    uiState.avatarBytes
+
+                if (avatarBytes != null) {
+
+                    val bitmap =
+                        BitmapFactory.decodeByteArray(
+                            avatarBytes,
+                            0,
+                            avatarBytes.size
+                        )
+
+                    if (bitmap != null) {
+
+                        androidx.compose.foundation.Image(
+                            bitmap =
+                                bitmap.asImageBitmap(),
+                            contentDescription =
+                                "Profile photo",
+                            modifier =
+                                Modifier.fillMaxSize(),
+                            contentScale =
+                                ContentScale.Crop
+                        )
+
+                    } else {
+
+                        Text(
+                            text =
+                                displayName
+                                    .firstOrNull()
+                                    ?.uppercase()
+                                    ?: "?",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .headlineMedium
+                        )
+                    }
+
+                } else {
+
+                    Text(
+                        text =
+                            displayName
+                                .firstOrNull()
+                                ?.uppercase()
+                                ?: "?",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .headlineMedium
+                    )
+                }
             }
 
             Spacer(

@@ -7,6 +7,9 @@ const userController =
 const authMiddleware =
     require("../middleware/authMiddleware");
 
+const upload =
+    require("../middleware/uploadMiddleware");
+
 const router =
     express.Router();
 
@@ -16,10 +19,23 @@ router.get(
     userController.getProfile
 );
 
+router.post(
+    "/me/avatar",
+    authMiddleware,
+    upload.single("file"),
+    userController.uploadAvatar
+);
+
 router.patch(
     "/me",
     authMiddleware,
     userController.updateProfile
+);
+
+router.get(
+    "/:userId/avatar",
+    authMiddleware,
+    userController.getAvatar
 );
 
 router.get(

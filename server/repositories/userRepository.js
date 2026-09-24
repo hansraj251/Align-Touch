@@ -209,6 +209,38 @@ const userRepository = {
 
         return result.rows[0] || null;
     },
+    async updateAvatar(
+        userId,
+        avatarUrl
+    ) {
+
+        const result =
+            await pool.query(
+                `
+                UPDATE users
+                SET
+                    avatar_url = $2,
+                    updated_at = NOW()
+                WHERE id = $1
+                RETURNING
+                    id,
+                    phone,
+                    email,
+                    display_name,
+                    avatar_url,
+                    about,
+                    last_seen_at,
+                    created_at
+                `,
+                [
+                    userId,
+                    avatarUrl
+                ]
+            );
+
+        return result.rows[0] || null;
+
+    },
 
     async updateProfile(
         userId,
