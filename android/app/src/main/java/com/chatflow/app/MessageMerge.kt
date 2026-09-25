@@ -8,12 +8,49 @@ object MessageMerge {
         restMessages: List<Message>,
         socketMessages: List<Message>
     ): List<Message> {
-        return (
-            restMessages + socketMessages
-        )
-            .associateBy {
-                it.id
-            }
+
+        val messagesById =
+
+            linkedMapOf<String, Message>()
+
+        restMessages.forEach { message ->
+
+            messagesById[message.id] =
+
+                message
+
+        }
+
+        socketMessages.forEach { socketMessage ->
+
+            val existingMessage =
+
+                messagesById[socketMessage.id]
+
+            messagesById[socketMessage.id] =
+
+                if (
+                    existingMessage != null &&
+                    socketMessage.attachments.isEmpty() &&
+                    existingMessage.attachments.isNotEmpty()
+                ) {
+
+                    socketMessage.copy(
+
+                        attachments =
+                            existingMessage.attachments
+
+                    )
+
+                } else {
+
+                    socketMessage
+
+                }
+
+        }
+
+        return messagesById
             .values
             .sortedWith(
                 compareBy<Message> {

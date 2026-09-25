@@ -1,5 +1,7 @@
 package com.chatflow.app
 
+import android.net.Uri
+
 import android.graphics.BitmapFactory
 
 import com.chatflow.app.data.Message
@@ -14,7 +16,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import com.chatflow.app.data.Contact
 import com.chatflow.app.data.Conversation
 
@@ -88,6 +89,8 @@ import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Circle
 
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.LaunchedEffect
@@ -2660,6 +2663,71 @@ fun ChatScreen(
         mutableStateOf<Long?>(null)
     }
 
+    var attachmentMenuExpanded by remember {
+        mutableStateOf(false)
+    }
+
+    var pendingAttachment by remember {
+        mutableStateOf<PendingAttachment?>(null)
+    }
+
+    val galleryPicker =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .GetContent()
+        ) { uri ->
+            if (uri != null) {
+                pendingAttachment =
+                    PendingAttachment(
+                        uri = uri.toString(),
+                        mimeType = "image/*",
+                        displayName =
+                            uri.lastPathSegment
+                                ?: "Image",
+                        kind = AttachmentKind.GALLERY
+                    )
+            }
+        }
+
+    val documentPicker =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .GetContent()
+        ) { uri ->
+            if (uri != null) {
+                pendingAttachment =
+                    PendingAttachment(
+                        uri = uri.toString(),
+                        mimeType = "application/octet-stream",
+                        displayName =
+                            uri.lastPathSegment
+                                ?: "Document",
+                        kind = AttachmentKind.DOCUMENT
+                    )
+            }
+        }
+
+    val audioPicker =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .GetContent()
+        ) { uri ->
+            if (uri != null) {
+                pendingAttachment =
+                    PendingAttachment(
+                        uri = uri.toString(),
+                        mimeType = "audio/*",
+                        displayName =
+                            uri.lastPathSegment
+                                ?: "Audio",
+                        kind = AttachmentKind.AUDIO
+                    )
+            }
+        }
+
     androidx.compose.runtime.LaunchedEffect(
         conversationId
     ) {
@@ -4017,6 +4085,75 @@ fun ChatScreen(
                     }
                 }
 
+                if (pendingAttachment != null) {
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = 8.dp,
+                                    vertical = 6.dp
+                                ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .surface
+                            )
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                            verticalAlignment =
+                                Alignment.CenterVertically
+                        ) {
+                            if (
+                                pendingAttachment!!
+                                    .isPreviewable
+                            ) {
+                                AsyncImage(
+                                    model =
+                                        Uri.parse(
+                                            pendingAttachment!!
+                                                .uri
+                                        ),
+                                    contentDescription =
+                                        "Attachment preview",
+                                    modifier =
+                                        Modifier
+                                            .size(72.dp),
+                                    contentScale =
+                                        ContentScale.Crop
+                                )
+                            } else {
+                                Text(
+                                    text =
+                                        pendingAttachment!!
+                                            .displayName,
+                                    modifier =
+                                        Modifier
+                                            .weight(1f),
+                                    maxLines = 1,
+                                    overflow =
+                                        androidx.compose.ui.text.style
+                                            .TextOverflow.Ellipsis
+                                )
+                            }
+
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    pendingAttachment = null
+                                }
+                            ) {
+                                Text("×")
+                            }
+                        }
+                    }
+                }
+
                 Row(
                     modifier =
                         Modifier
@@ -4171,13 +4308,80 @@ onClick = {
                     }
 
                     androidx.compose.material3.TextButton(
-                        contentPadding = PaddingValues(horizontal = 2.dp),
-onClick = {}
+                        contentPadding =
+                            PaddingValues(horizontal = 2.dp),
+                        onClick = {
+                            attachmentMenuExpanded = true
+                        }
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.AttachFile,
-                            contentDescription = "Attachment"
+                            imageVector =
+                                Icons.Filled.AttachFile,
+                            contentDescription =
+                                "Attachment"
                         )
+                    }
+
+                    DropdownMenu(
+                        expanded =
+                            attachmentMenuExpanded,
+                        onDismissRequest = {
+                            attachmentMenuExpanded = false
+                        }
+                    ) {
+                        AttachmentKind.menuItems().forEach { kind ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(kind.label)
+                                },
+                                onClick = {
+                                    attachmentMenuExpanded =
+                                        false
+
+                                    when (kind) {
+                                        AttachmentKind.GALLERY -> {
+                                            galleryPicker.launch(
+                                                AttachmentPickerSpec
+                                                    .mimeTypes(
+                                                        AttachmentKind.GALLERY
+                                                    )
+                                                    .first()
+                                            )
+                                        }
+
+                                        AttachmentKind.DOCUMENT -> {
+                                            documentPicker.launch(
+                                                AttachmentPickerSpec
+                                                    .mimeTypes(
+                                                        AttachmentKind.DOCUMENT
+                                                    )
+                                                    .first()
+                                            )
+                                        }
+
+                                        AttachmentKind.AUDIO -> {
+                                            audioPicker.launch(
+                                                AttachmentPickerSpec
+                                                    .mimeTypes(
+                                                        AttachmentKind.AUDIO
+                                                    )
+                                                    .first()
+                                            )
+                                        }
+
+                                        AttachmentKind.CAMERA,
+                                        AttachmentKind.LOCATION,
+                                        AttachmentKind.CONTACT -> {
+                                            Toast.makeText(
+                                                context,
+                                                "${kind.label} will be added next.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -4209,7 +4413,10 @@ onClick = {}
             Button(
                 onClick = {
 
-                    if (messageText.isNotBlank()) {
+                    if (
+                        messageText.isNotBlank() ||
+                        pendingAttachment != null
+                    ) {
 
                         if (editingMessage != null) {
                             viewModel.editMessage(
@@ -4235,24 +4442,33 @@ onClick = {}
                                     .toString()
                             }
 
-                        viewModel.sendMessage(
-                            conversationId =
-                                conversationId,
-                            content =
-                                messageText,
-                            expiresAt =
-                                expiresAt,
-                            replyToMessageId =
-                                replyingToMessage?.id
-                        )
-
+                        if (pendingAttachment != null) {
+                            viewModel.uploadAttachment(
+                                conversationId = conversationId,
+                                uri = Uri.parse(
+                                    pendingAttachment!!.uri
+                                )
+                            )
+                            pendingAttachment = null
+                        } else {
+                            viewModel.sendMessage(
+                                conversationId = conversationId,
+                                content = messageText,
+                                expiresAt = expiresAt,
+                                replyToMessageId =
+                                    replyingToMessage?.id
+                            )
+                        }
                         messageText = ""
                         replyingToMessage = null
                     }
                 },
                 enabled =
                     !uiState.sending &&
-                    messageText.isNotBlank(),
+                    (
+                        messageText.isNotBlank() ||
+                        pendingAttachment != null
+                    ),
                 shape =
                     RoundedCornerShape(50.dp),
                 modifier =

@@ -17,6 +17,12 @@ interface MessageAttachmentApi {
     suspend fun uploadAttachment(
         @Part("conversationId")
         conversationId: RequestBody,
+        @Part("content")
+        content: RequestBody?,
+        @Part("replyToMessageId")
+        replyToMessageId: RequestBody?,
+        @Part("expiresAt")
+        expiresAt: RequestBody?,
         @Part file: MultipartBody.Part,
         @Header("Authorization")
         authorization: String

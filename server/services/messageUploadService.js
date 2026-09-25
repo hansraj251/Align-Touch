@@ -69,7 +69,10 @@ const messageUploadService = {
     async uploadAttachment({
         conversationId,
         senderId,
-        file
+        file,
+        content = null,
+        replyToMessageId = null,
+        expiresAt = null
     }) {
         if (!conversationId) {
             throw new Error(
@@ -129,9 +132,12 @@ const messageUploadService = {
                     conversationId,
                     senderId,
                     messageType,
-                    content: null,
-                    replyToMessageId: null,
-                    expiresAt: null
+                    content:
+                        content && String(content).trim()
+                            ? String(content).trim()
+                            : null,
+                    replyToMessageId,
+                    expiresAt
                 });
 
             const attachment =
