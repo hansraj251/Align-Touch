@@ -16,3 +16,6 @@ server/uploads/
 
 # IDE files
 .idea/
+
+# Git worktrees
+.worktrees/
