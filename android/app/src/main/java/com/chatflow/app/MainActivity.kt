@@ -105,6 +105,44 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
+private fun formatRemainingMessageTime(seconds: Long): String {
+
+    if (seconds < 60L) {
+        return "${seconds}s"
+    }
+
+    if (seconds < 3600L) {
+        val minutes = seconds / 60L
+        val remainingSeconds = seconds % 60L
+
+        return if (remainingSeconds > 0L) {
+            "${minutes}m ${remainingSeconds}s"
+        } else {
+            "${minutes}m"
+        }
+    }
+
+    if (seconds < 86400L) {
+        val hours = seconds / 3600L
+        val remainingMinutes = (seconds % 3600L) / 60L
+
+        return if (remainingMinutes > 0L) {
+            "${hours}h ${remainingMinutes}m"
+        } else {
+            "${hours}h"
+        }
+    }
+
+    val days = seconds / 86400L
+    val remainingHours = (seconds % 86400L) / 3600L
+
+    return if (remainingHours > 0L) {
+        "${days}d ${remainingHours}h"
+    } else {
+        "${days}d"
+    }
+}
+
 private fun remainingMessageSeconds(expiresAt: String?): Long {
     if (expiresAt.isNullOrBlank()) {
         return 0L
@@ -2607,6 +2645,14 @@ fun ChatScreen(
         }
     }
 
+    var chatHeaderMenuExpanded by remember {
+        mutableStateOf(false)
+    }
+
+    var chatNotificationsMuted by remember {
+        mutableStateOf(false)
+    }
+
     var expiryMenuExpanded by remember {
         mutableStateOf(false)
     }
@@ -2940,10 +2986,147 @@ fun ChatScreen(
                     }
                 }
 
-                androidx.compose.material3.TextButton(
-                    onClick = {}
-                ) {
-                    Text("⋮")
+                Box {
+                    androidx.compose.material3.IconButton(
+                        onClick = {
+                            chatHeaderMenuExpanded = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "Chat menu"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = chatHeaderMenuExpanded,
+                        onDismissRequest = {
+                            chatHeaderMenuExpanded = false
+                        }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (conversationType == "group") {
+                                        "Group info"
+                                    } else {
+                                        "Contact info"
+                                    }
+                                )
+                            },
+                            onClick = {
+                                chatHeaderMenuExpanded = false
+                                onContactClick()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Search")
+                            },
+                            onClick = {
+                                chatHeaderMenuExpanded = false
+                                Toast.makeText(
+                                    context,
+                                    "Message search will be connected next",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (chatNotificationsMuted) {
+                                        "Unmute notifications"
+                                    } else {
+                                        "Mute notifications"
+                                    }
+                                )
+                            },
+                            onClick = {
+                                chatNotificationsMuted =
+                                    !chatNotificationsMuted
+
+                                chatHeaderMenuExpanded = false
+
+                                Toast.makeText(
+                                    context,
+                                    if (chatNotificationsMuted) {
+                                        "Notifications muted"
+                                    } else {
+                                        "Notifications unmuted"
+                                    },
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Disappearing messages")
+                            },
+                            onClick = {
+                                chatHeaderMenuExpanded = false
+                                expiryMenuExpanded = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Clear chat")
+                            },
+                            onClick = {
+                                chatHeaderMenuExpanded = false
+
+                                viewModel.clearChat(
+                                    conversationId = conversationId,
+                                    onSuccess = {
+                                        Toast.makeText(
+                                            context,
+                                            "Chat cleared",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    onError = { message ->
+                                        Toast.makeText(
+                                            context,
+                                            message,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Block")
+                            },
+                            onClick = {
+                                chatHeaderMenuExpanded = false
+                                Toast.makeText(
+                                    context,
+                                    "Block will be connected to server",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Report")
+                            },
+                            onClick = {
+                                chatHeaderMenuExpanded = false
+                                Toast.makeText(
+                                    context,
+                                    "Report will be connected to server",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -3608,7 +3791,7 @@ fun ChatScreen(
 
                                         Text(
                                             text =
-                                                "${remainingSeconds}s",
+                                                formatRemainingMessageTime(remainingSeconds),
                                             style =
                                                 MaterialTheme
                                                     .typography

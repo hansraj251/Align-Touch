@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS conversation_members (
     role VARCHAR(20) NOT NULL DEFAULT 'member',
     joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_read_message_id BIGINT,
+    cleared_at TIMESTAMPTZ,
 
     CONSTRAINT fk_members_conversation
         FOREIGN KEY (conversation_id)

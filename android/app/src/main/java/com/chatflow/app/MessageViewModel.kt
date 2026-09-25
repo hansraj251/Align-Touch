@@ -15,6 +15,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.chatflow.app.data.Message
+import com.chatflow.app.data.ConversationRepository
 import com.chatflow.app.data.MessageRepository
 
 import com.chatflow.app.data.MessageAttachmentRepository
@@ -51,6 +52,9 @@ class MessageViewModel(
 
     private val repository =
         MessageRepository()
+
+    private val conversationRepository =
+        ConversationRepository()
 
     private val attachmentRepository =
         MessageAttachmentRepository()
@@ -860,6 +864,53 @@ class MessageViewModel(
         socketManager.deleteMessage(
             messageId
         )
+    }
+
+    fun clearChat(
+        conversationId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val token =
+                    sessionManager.getToken()
+
+                if (token.isNullOrBlank()) {
+                    onError("Session expired")
+                    return@launch
+                }
+
+                conversationRepository.clearChat(
+                    token = token,
+                    conversationId = conversationId
+                )
+
+                socketMessages.clear()
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        messages = emptyList(),
+                        messageReceipts = emptyMap(),
+                        messageReactions = emptyMap()
+                    )
+
+                onSuccess()
+
+            } catch (error: Exception) {
+
+                Log.e(
+                    "MessageViewModel",
+                    "Clear chat failed",
+                    error
+                )
+
+                onError(
+                    error.message
+                        ?: "Failed to clear chat"
+                )
+            }
+        }
     }
 
     fun forwardMessage(

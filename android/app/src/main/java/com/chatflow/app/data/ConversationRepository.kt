@@ -94,6 +94,24 @@ class ConversationRepository {
         )
     }
 
+    suspend fun clearChat(
+
+        token: String,
+
+        conversationId: String
+
+    ): ClearChatResponse {
+
+        return ApiClient.authApi.clearChat(
+
+            conversationId = conversationId,
+
+            authorization = "Bearer $token"
+
+        )
+
+    }
+
     suspend fun getGroupDetails(
         token: String,
         conversationId: String

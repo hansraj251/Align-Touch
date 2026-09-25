@@ -115,17 +115,17 @@ const messageRepository = {
             await pool.query(
                 `
                 SELECT
-                    id,
-                    conversation_id,
-                    sender_id,
-                    message_type,
-                    content,
-                    reply_to_message_id,
-                    forwarded_from_message_id,
-                    created_at,
-                    edited_at,
-                    deleted_at,
-                    expires_at
+                    m.id,
+                    m.conversation_id,
+                    m.sender_id,
+                    m.message_type,
+                    m.content,
+                    m.reply_to_message_id,
+                    m.forwarded_from_message_id,
+                    m.created_at,
+                    m.edited_at,
+                    m.deleted_at,
+                    m.expires_at
                 FROM messages
                 WHERE id = $1
                 `,
@@ -211,6 +211,7 @@ const messageRepository = {
 
     async listByConversation(
         conversationId,
+        userId,
         limit = 50
     ) {
 
@@ -218,28 +219,37 @@ const messageRepository = {
             await pool.query(
                 `
                 SELECT
-                    id,
-                    conversation_id,
-                    sender_id,
-                    message_type,
-                    content,
-                    reply_to_message_id,
-                    forwarded_from_message_id,
-                    created_at,
-                    edited_at,
-                    deleted_at,
-                    expires_at
-                FROM messages
-                WHERE conversation_id = $1
+                    m.id,
+                    m.conversation_id,
+                    m.sender_id,
+                    m.message_type,
+                    m.content,
+                    m.reply_to_message_id,
+                    m.forwarded_from_message_id,
+                    m.created_at,
+                    m.edited_at,
+                    m.deleted_at,
+                    m.expires_at
+
+                FROM messages m
+                INNER JOIN conversation_members cm
+                    ON cm.conversation_id = m.conversation_id
+                    AND cm.user_id = $2
+                WHERE m.conversation_id = $1
                   AND (
-                      expires_at IS NULL
-                      OR expires_at > NOW()
+                      cm.cleared_at IS NULL
+                      OR m.created_at > cm.cleared_at
                   )
-                ORDER BY id ASC
-                LIMIT $2
+                  AND (
+                      m.expires_at IS NULL
+                      OR m.expires_at > NOW()
+                  )
+                ORDER BY m.id ASC
+                LIMIT $3
                 `,
                 [
                     conversationId,
+                    userId,
                     limit
                 ]
             );

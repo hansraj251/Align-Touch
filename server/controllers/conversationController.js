@@ -194,6 +194,52 @@ async removeGroupMember(req, res) {
     }
 },
 
+async clearChat(req, res) {
+
+    try {
+
+        const cleared =
+            await conversationService.clearChat(
+                req.user.userId,
+                req.params.id
+            );
+
+        return res.status(200).json({
+            success: true,
+            conversationId:
+                cleared.conversation_id,
+            clearedAt:
+                cleared.cleared_at
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Clear chat error:",
+            error
+        );
+
+        if (
+            error.message ===
+                "You are not a member of this conversation"
+        ) {
+
+            return res.status(403).json({
+                success: false,
+                message: error.message
+            });
+
+        }
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to clear chat"
+        });
+
+    }
+
+},
+
 async deleteGroup(req, res) {
     try {
         const deleted =

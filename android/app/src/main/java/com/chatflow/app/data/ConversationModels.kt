@@ -101,3 +101,13 @@ data class DeleteGroupResponse(
     val success: Boolean,
     val groupId: String
 )
+
+data class ClearChatResponse(
+
+    val success: Boolean,
+
+    val conversationId: String,
+
+    val clearedAt: String
+
+)

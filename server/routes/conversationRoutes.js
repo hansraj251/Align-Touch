@@ -40,6 +40,12 @@ router.delete(
     conversationController.deleteGroup
 );
 
+router.delete(
+    "/:id/clear",
+    authMiddleware,
+    conversationController.clearChat
+);
+
 
 router.get(
     "/:id/group/members",

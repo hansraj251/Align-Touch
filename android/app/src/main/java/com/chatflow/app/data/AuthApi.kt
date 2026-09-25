@@ -172,5 +172,11 @@ suspend fun getGroupMembers(
         @Path("id") conversationId: String,
         @Header("Authorization") authorization: String
     ): DeleteGroupResponse
+    @DELETE("api/conversations/{id}/clear")
+    suspend fun clearChat(
+        @Path("id") conversationId: String,
+        @Header("Authorization") authorization: String
+    ): ClearChatResponse
+
 
 }

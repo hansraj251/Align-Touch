@@ -318,7 +318,8 @@ const messageService = {
 
         const messages =
             await messageRepository.listByConversation(
-                conversationId
+                conversationId,
+                userId
             );
 
         return Promise.all(

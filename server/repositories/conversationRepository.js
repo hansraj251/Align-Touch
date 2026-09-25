@@ -71,6 +71,33 @@ const conversationRepository = {
         return result.rowCount > 0;
     },
 
+    async clearChat(
+        conversationId,
+        userId
+    ) {
+
+        const result =
+            await pool.query(
+                `
+                UPDATE conversation_members
+                SET
+                    cleared_at = NOW()
+                WHERE conversation_id = $1
+                    AND user_id = $2
+                RETURNING
+                    conversation_id,
+                    user_id,
+                    cleared_at
+                `,
+                [
+                    conversationId,
+                    userId
+                ]
+            );
+
+        return result.rows[0] || null;
+    },
+
     async createDirectConversation(
         userId,
         otherUserId

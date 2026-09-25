@@ -176,6 +176,38 @@ async removeGroupMember(
     return removed;
 },
 
+async clearChat(
+    userId,
+    conversationId
+) {
+
+    const isMember =
+        await conversationRepository.isMember(
+            conversationId,
+            userId
+        );
+
+    if (!isMember) {
+        throw new Error(
+            "You are not a member of this conversation"
+        );
+    }
+
+    const cleared =
+        await conversationRepository.clearChat(
+            conversationId,
+            userId
+        );
+
+    if (!cleared) {
+        throw new Error(
+            "Conversation not found"
+        );
+    }
+
+    return cleared;
+},
+
 async deleteGroup(
     userId,
     conversationId

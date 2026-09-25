@@ -13,3 +13,6 @@ android/**/build/
 android/local.properties
 
 server/uploads/
+
+# IDE files
+.idea/
