@@ -69,8 +69,13 @@ const userController = {
 
             }
 
+            const realFilePath =
+                fs.realpathSync(
+                    result.filePath
+                );
+
             return res.sendFile(
-                result.filePath
+                realFilePath
             );
 
         } catch (error) {

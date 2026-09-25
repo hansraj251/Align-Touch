@@ -94,6 +94,25 @@ class ProfileViewModel(
         userId: String
     ) {
 
+        val context =
+            getApplication<Application>()
+
+        val cachedBytes =
+            AvatarCache.read(
+                context = context,
+                userId = userId
+            )
+
+        if (cachedBytes != null) {
+
+            _uiState.value =
+                _uiState.value.copy(
+                    avatarBytes = cachedBytes
+                )
+
+            return
+        }
+
         val token =
             sessionManager.getToken()
 
@@ -111,18 +130,22 @@ class ProfileViewModel(
                         token = token
                     )
 
+                val bytes =
+                    response.bytes()
+
+                AvatarCache.write(
+                    context = context,
+                    userId = userId,
+                    bytes = bytes
+                )
+
                 _uiState.value =
                     _uiState.value.copy(
-                        avatarBytes =
-                            response.bytes()
+                        avatarBytes = bytes
                     )
 
             } catch (error: Exception) {
 
-                _uiState.value =
-                    _uiState.value.copy(
-                        avatarBytes = null
-                    )
             }
         }
     }
@@ -190,11 +213,13 @@ class ProfileViewModel(
                     )
 
                 response.user?.let { user ->
-                    AvatarCache.delete(
+                    AvatarCache.write(
                         context =
                             getApplication<Application>(),
                         userId =
-                            user.id
+                            user.id,
+                        bytes =
+                            bytes
                     )
                 }
 
@@ -202,6 +227,7 @@ class ProfileViewModel(
                     _uiState.value.copy(
                         saving = false,
                         user = response.user,
+                        avatarBytes = bytes,
                         message =
                             "Profile photo updated"
                     )
@@ -261,7 +287,8 @@ class ProfileViewModel(
                     )
 
                 _uiState.value =
-                    ProfileUiState(
+                    _uiState.value.copy(
+                        saving = false,
                         user =
                             response.user,
                         message =

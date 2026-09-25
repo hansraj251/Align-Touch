@@ -126,8 +126,8 @@ const messageRepository = {
                     m.edited_at,
                     m.deleted_at,
                     m.expires_at
-                FROM messages
-                WHERE id = $1
+                FROM messages AS m
+                WHERE m.id = $1
                 `,
                 [id]
             );

@@ -2606,6 +2606,20 @@ fun ChatScreen(
     }
     val context = LocalContext.current
 
+    val attachmentPicker =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .GetContent()
+        ) { uri ->
+            if (uri != null) {
+                viewModel.uploadAttachment(
+                    conversationId = conversationId,
+                    uri = uri
+                )
+            }
+        }
+
     var selectedMessageIds by remember {
         mutableStateOf<Set<String>>(emptySet())
     }
@@ -4171,13 +4185,38 @@ onClick = {
                     }
 
                     androidx.compose.material3.TextButton(
+
+
                         contentPadding = PaddingValues(horizontal = 2.dp),
-onClick = {}
+
+
+                        onClick = {
+
+
+                            attachmentPicker.launch("*/*")
+
+
+                        },
+
+
+                        enabled = !uiState.uploadingAttachment
+
+
                     ) {
+
+
                         Icon(
+
+
                             imageVector = Icons.Filled.AttachFile,
+
+
                             contentDescription = "Attachment"
+
+
                         )
+
+
                     }
                 }
             }
@@ -5103,6 +5142,7 @@ fun ProfileScreen(
 
             about =
                 user.about ?: ""
+
             viewModel.loadAvatar(
                 user.id
             )
