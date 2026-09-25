@@ -7,8 +7,12 @@ import com.chatflow.app.data.Message
 import androidx.compose.foundation.border
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import com.chatflow.app.data.Contact
@@ -17,6 +21,9 @@ import com.chatflow.app.data.Conversation
 import android.util.Log
 
 import android.os.Bundle
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -49,6 +56,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
@@ -66,6 +74,13 @@ import androidx.compose.ui.unit.sp
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.SentimentSatisfied
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Reply
+import androidx.compose.material.icons.filled.Forward
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.PersonAdd
@@ -85,8 +100,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
+
+private fun remainingMessageSeconds(expiresAt: String?): Long {
+    if (expiresAt.isNullOrBlank()) {
+        return 0L
+    }
+
+    return try {
+        val remainingMillis =
+            java.time.Instant
+                .parse(expiresAt)
+                .toEpochMilli() -
+            System.currentTimeMillis()
+
+        ((remainingMillis + 999L) / 1000L)
+            .coerceAtLeast(0L)
+    } catch (_: Exception) {
+        0L
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -2530,8 +2566,19 @@ fun ChatScreen(
     var messageText by remember {
         mutableStateOf("")
     }
-    var reactionMenuMessageId by remember {
-        mutableStateOf<String?>(null)
+    val context = LocalContext.current
+
+    var selectedMessageIds by remember {
+        mutableStateOf<Set<String>>(emptySet())
+    }
+    var selectedMessage by remember {
+        mutableStateOf<Message?>(null)
+    }
+    var selectionMoreExpanded by remember {
+        mutableStateOf(false)
+    }
+    var showMessageInfo by remember {
+        mutableStateOf(false)
     }
     var replyingToMessage by remember {
         mutableStateOf<Message?>(null)
@@ -2575,6 +2622,14 @@ fun ChatScreen(
         )
     }
 
+    androidx.activity.compose.BackHandler(
+        enabled = selectedMessageIds.isNotEmpty()
+    ) {
+        selectedMessageIds = emptySet()
+        selectedMessage = null
+        selectionMoreExpanded = false
+    }
+
     Column(
         modifier =
             Modifier
@@ -2582,102 +2637,374 @@ fun ChatScreen(
                 .imePadding()
     ) {
 
-        androidx.compose.foundation.layout.Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(
-                        start = 12.dp,
-                        top = 0.dp,
-                        end = 12.dp,
-                        bottom = 6.dp
-                    ),
-            verticalAlignment =
-                Alignment.CenterVertically
-        ) {
-
-            androidx.compose.material3.TextButton(
-                onClick = onBack
-            ) {
-                Text(
-                    text = "‹",
-                    style =
-                        MaterialTheme
-                            .typography
-                            .headlineMedium
-                )
-            }
-
-            UserAvatar(
-                userId = otherUserId,
-                displayName = contactName,
-                size = 40.dp
-            )
-            Column(
+        if (selectedMessageIds.isNotEmpty()) {
+            androidx.compose.foundation.layout.Row(
                 modifier =
                     Modifier
-                        .weight(1f)
-                        .padding(start = 10.dp)
-                        .clickable(
-                            enabled = true
-                        ) {
-                            onContactClick()
-                        }
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(
+                            horizontal = 8.dp,
+                            vertical = 4.dp
+                        ),
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        selectedMessageIds = emptySet()
+                        selectedMessage = null
+                        selectionMoreExpanded = false
+                    }
+                ) {
+                    Text(
+                        text = "‹",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .headlineMedium
+                    )
+                }
+
                 Text(
-                    text = contactName,
+                    text = selectedMessageIds.size.toString(),
                     style =
                         MaterialTheme
                             .typography
-                            .titleMedium
+                            .titleLarge,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = 8.dp
+                        )
                 )
 
-                if (conversationType == "direct") {
-                    Text(
-                        text =
-                            if (
-                                onlineUserIds.contains(
-                                    otherUserId
-                                )
-                            ) {
-                                "Online"
-                            } else if (
-                                !lastSeenAt.isNullOrBlank()
-                            ) {
-                                "Last seen " +
-                                    formatLastSeen(
-                                        lastSeenAt
-                                    )
-                            } else {
-                                "Offline"
-                            },
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall
-                    )
-                } else {
-                    Text(
-                        text =
-                            contactPhone
-                                ?: "No phone number",
-                        style =
-                            MaterialTheme
-                                .typography
-                                .bodySmall
+                Spacer(
+                    modifier =
+                        Modifier.weight(1f)
+                )
+
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        selectedMessage?.let {
+                            replyingToMessage = it
+                        }
+                        selectedMessageIds = emptySet()
+                        selectedMessage = null
+                    },
+                    enabled = selectedMessage != null
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Reply,
+                        contentDescription = "Reply"
                     )
                 }
-            }
 
-            androidx.compose.material3.TextButton(
-                onClick = {}
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        selectedMessage?.let {
+                            onForwardMessage(it)
+                        }
+                        selectedMessageIds = emptySet()
+                        selectedMessage = null
+                    },
+                    enabled = selectedMessage != null
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Forward,
+                        contentDescription = "Forward"
+                    )
+                }
+
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        selectedMessage?.let {
+                            viewModel.deleteMessage(it.id)
+                        }
+                        selectedMessageIds = emptySet()
+                        selectedMessage = null
+                    },
+                    enabled =
+                        selectedMessage != null &&
+                            selectedMessage?.sender_id == currentUserId &&
+                            selectedMessage?.deleted_at == null
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Delete"
+                    )
+                }
+
+                Box {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            selectionMoreExpanded = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "More"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = selectionMoreExpanded,
+                        onDismissRequest = {
+                            selectionMoreExpanded = false
+                        }
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text("Message info")
+                            },
+                            onClick = {
+                                selectionMoreExpanded = false
+                                showMessageInfo = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Copy")
+                            },
+                            onClick = {
+                                selectedMessage?.content?.let { content ->
+                                    val clipboard =
+                                        context.getSystemService(
+                                            Context.CLIPBOARD_SERVICE
+                                        ) as ClipboardManager
+
+                                    clipboard.setPrimaryClip(
+                                        android.content.ClipData.newPlainText(
+                                            "Message",
+                                            content
+                                        )
+                                    )
+                                }
+
+                                selectionMoreExpanded = false
+                                selectedMessageIds = emptySet()
+                                selectedMessage = null
+                            }
+                        )
+
+                        if (
+                            selectedMessage?.sender_id == currentUserId &&
+                            selectedMessage?.deleted_at == null
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text("Edit")
+                                },
+                                onClick = {
+                                    editingMessage =
+                                        selectedMessage
+                                    messageText =
+                                        selectedMessage?.content.orEmpty()
+                                    selectionMoreExpanded = false
+                                    selectedMessageIds = emptySet()
+                                    selectedMessage = null
+                                }
+                            )
+                        }
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Pin")
+                            },
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "Pin support is not connected yet",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                selectionMoreExpanded = false
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text("Translate")
+                            },
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "Translation service is not connected yet",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                selectionMoreExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        } else {
+            androidx.compose.foundation.layout.Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(
+                            start = 12.dp,
+                            top = 0.dp,
+                            end = 12.dp,
+                            bottom = 6.dp
+                        ),
+                verticalAlignment =
+                    Alignment.CenterVertically
             ) {
-                Text("⋮")
+                androidx.compose.material3.TextButton(
+                    onClick = onBack
+                ) {
+                    Text(
+                        text = "‹",
+                        style =
+                            MaterialTheme
+                                .typography
+                                .headlineMedium
+                    )
+                }
+
+                UserAvatar(
+                    userId = otherUserId,
+                    displayName = contactName,
+                    size = 40.dp
+                )
+
+                Column(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(start = 10.dp)
+                            .clickable {
+                                onContactClick()
+                            }
+                ) {
+                    Text(
+                        text = contactName,
+                        style =
+                            MaterialTheme
+                                .typography
+                                .titleMedium
+                    )
+
+                    if (conversationType == "direct") {
+                        Text(
+                            text =
+                                if (
+                                    uiState.typingUserIds.isNotEmpty()
+                                ) {
+                                    "Typing..."
+                                } else if (
+                                    onlineUserIds.contains(
+                                        otherUserId
+                                    )
+                                ) {
+                                    "Online"
+                                } else if (
+                                    !lastSeenAt.isNullOrBlank()
+                                ) {
+                                    "Last seen " +
+                                        formatLastSeen(
+                                            lastSeenAt
+                                        )
+                                } else {
+                                    "Offline"
+                                },
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall,
+                            color =
+                                if (
+                                    uiState.typingUserIds.isNotEmpty()
+                                ) {
+                                    MaterialTheme
+                                        .colorScheme
+                                        .primary
+                                } else {
+                                    MaterialTheme
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                }
+                        )
+                    } else {
+                        Text(
+                            text =
+                                contactPhone
+                                    ?: "No phone number",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .bodySmall
+                        )
+                    }
+                }
+
+                androidx.compose.material3.TextButton(
+                    onClick = {}
+                ) {
+                    Text("⋮")
+                }
             }
         }
 
         androidx.compose.material3.HorizontalDivider()
+
+        if (showMessageInfo && selectedMessage != null) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = {
+                    showMessageInfo = false
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            showMessageInfo = false
+                        }
+                    ) {
+                        Text("Close")
+                    }
+                },
+                title = {
+                    Text("Message info")
+                },
+                text = {
+                    Column {
+                        Text(
+                            text =
+                                "Sent: " +
+                                    selectedMessage!!
+                                        .created_at
+                                        .replace("T", " ")
+                                        .take(16)
+                        )
+
+                        if (
+                            selectedMessage!!
+                                .sender_id ==
+                                currentUserId
+                        ) {
+                            Text(
+                                text = "Status: " +
+                                    when {
+                                        uiState.messageReceipts[
+                                            selectedMessage!!.id
+                                        ]?.read_at != null ->
+                                            "Read"
+
+                                        uiState.messageReceipts[
+                                            selectedMessage!!.id
+                                        ]?.delivered_at != null ->
+                                            "Delivered"
+
+                                        else ->
+                                            "Sent"
+                                    }
+                            )
+                        }
+                    }
+                }
+            )
+        }
 
         if (uiState.loading) {
 
@@ -2774,11 +3101,151 @@ fun ChatScreen(
                             }
                     ) {
 
+                        Column(
+                            horizontalAlignment =
+                                if (isMine) {
+                                    Alignment.End
+                                } else {
+                                    Alignment.Start
+                                }
+                        ) {
+
+                            if (selectedMessage?.id == message.id) {
+                                Card(
+                                    modifier =
+                                        Modifier
+                                            .padding(
+                                                horizontal = 4.dp,
+                                                vertical = 2.dp
+                                            )
+                                            .offset(
+                                                y = (-4).dp
+                                            )
+                                            .zIndex(2f),
+                                    shape =
+                                        RoundedCornerShape(24.dp),
+                                    colors =
+                                        CardDefaults.cardColors(
+                                            containerColor =
+                                                MaterialTheme
+                                                    .colorScheme
+                                                    .surface
+                                        ),
+                                    elevation =
+                                        CardDefaults.cardElevation(
+                                            defaultElevation = 6.dp
+                                        )
+                                ) {
+                                    Row(
+                                        modifier =
+                                            Modifier.padding(
+                                                horizontal = 6.dp,
+                                                vertical = 4.dp
+                                            ),
+                                        horizontalArrangement =
+                                            Arrangement.spacedBy(1.dp),
+                                        verticalAlignment =
+                                            Alignment.CenterVertically
+                                    ) {
+                                        listOf(
+                                            "❤️",
+                                            "😂",
+                                            "😮",
+                                            "😢",
+                                            "🙏",
+                                            "👍"
+                                        ).forEach { reaction ->
+                                            Text(
+                                                text = reaction,
+                                                fontSize = 24.sp,
+                                                modifier =
+                                                    Modifier
+                                                        .clickable {
+                                                            viewModel.reactToMessage(
+                                                                message.id,
+                                                                reaction
+                                                            )
+                                                            selectedMessageIds =
+                                                                emptySet()
+                                                            selectedMessage =
+                                                                null
+                                                            selectionMoreExpanded =
+                                                                false
+                                                        }
+                                                        .padding(
+                                                            horizontal = 4.dp,
+                                                            vertical = 2.dp
+                                                        )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                         Card(
                             modifier =
                                 Modifier
                                     .widthIn(
                                         max = 320.dp
+                                    )
+                                    .pointerInput(message.id) {
+                                        var totalDrag = 0f
+
+                                        detectHorizontalDragGestures(
+                                            onHorizontalDrag = { _, dragAmount ->
+                                                if (dragAmount > 0f) {
+                                                    totalDrag += dragAmount
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                if (
+                                                    totalDrag >= 80f &&
+                                                    selectedMessageIds.isEmpty()
+                                                ) {
+                                                    replyingToMessage =
+                                                        message
+                                                }
+                                            }
+                                        )
+                                    }
+                                    .combinedClickable(
+                                        onClick = {
+                                            if (
+                                                selectedMessageIds.isNotEmpty()
+                                            ) {
+                                                selectedMessageIds =
+                                                    if (
+                                                        selectedMessageIds
+                                                            .contains(
+                                                                message.id
+                                                            )
+                                                    ) {
+                                                        selectedMessageIds -
+                                                            message.id
+                                                    } else {
+                                                        selectedMessageIds +
+                                                            message.id
+                                                    }
+
+                                                selectedMessage =
+                                                    selectedMessageIds
+                                                        .firstOrNull()
+                                                        ?.let { id ->
+                                                            uiState.messages
+                                                                .firstOrNull {
+                                                                    it.id == id
+                                                                }
+                                                        }
+                                            }
+                                        },
+                                        onLongClick = {
+                                            selectedMessageIds =
+                                                selectedMessageIds +
+                                                    message.id
+
+                                            selectedMessage =
+                                                message
+                                        }
                                     ),
                             shape =
                                 RoundedCornerShape(
@@ -3041,7 +3508,7 @@ fun ChatScreen(
                                                 modifier =
                                                     Modifier
                                                         .padding(
-                                                            horizontal = 2.dp
+                                                            horizontal = 3.dp
                                                         )
                                                         .clickable {
                                                             val ownReaction =
@@ -3067,131 +3534,45 @@ fun ChatScreen(
                                                         .labelMedium
                                             )
                                         }
+                                }
 
-                                    androidx.compose.material3.TextButton(
-                                        onClick = {
-                                            reactionMenuMessageId =
-                                                message.id
-                                        }
-                                    ) {
-                                        Text("＋")
-                                    }
-
-                                    androidx.compose.material3.DropdownMenu(
-                                        expanded =
-                                            reactionMenuMessageId ==
-                                                message.id,
-                                        onDismissRequest = {
-                                            reactionMenuMessageId =
-                                                null
-                                        }
-                                    ) {
-                                        androidx.compose.material3.DropdownMenuItem(
-                                            text = {
-                                                Text("Reply")
-                                            },
-                                            onClick = {
-                                                replyingToMessage =
-                                                    message
-                                                reactionMenuMessageId =
-                                                    null
-                                            }
+                                var remainingSeconds by remember(
+                                    message.id,
+                                    message.expires_at
+                                ) {
+                                    mutableStateOf(
+                                        remainingMessageSeconds(
+                                            message.expires_at
                                         )
+                                    )
+                                }
 
-                                        if (message.deleted_at == null) {
-                                            androidx.compose.material3.DropdownMenuItem(
-                                                text = {
-                                                    Text("Forward")
-                                                },
-                                                onClick = {
-                                                    onForwardMessage(
-                                                        message
-                                                    )
-                                                    reactionMenuMessageId = null
-                                                }
-                                            )
-                                        }
+                                if (
+                                    isMine &&
+                                    !message.expires_at.isNullOrBlank()
+                                ) {
+                                    LaunchedEffect(
+                                        message.id,
+                                        message.expires_at
+                                    ) {
+                                        while (true) {
+                                            val seconds =
+                                                remainingMessageSeconds(
+                                                    message.expires_at
+                                                )
 
-                                        if (
-                                            isMine &&
-                                            message.deleted_at == null
-                                        ) {
-                                            androidx.compose.material3.DropdownMenuItem(
-                                                text = {
-                                                    Text("Edit")
-                                                },
-                                                onClick = {
-                                                    editingMessage =
-                                                        message
+                                            remainingSeconds =
+                                                seconds
 
-                                                    messageText =
-                                                        message.content
-                                                            ?: ""
+                                            if (seconds <= 0L) {
+                                                break
+                                            }
 
-                                                    reactionMenuMessageId =
-                                                        null
-                                                }
-                                            )
-                                        }
-
-                                        if (
-                                            isMine &&
-                                            message.deleted_at == null
-                                        ) {
-                                            androidx.compose.material3.DropdownMenuItem(
-                                                text = {
-                                                    Text("Delete")
-                                                },
-                                                onClick = {
-                                                    viewModel.deleteMessage(
-                                                        message.id
-                                                    )
-                                                    reactionMenuMessageId =
-                                                        null
-                                                }
-                                            )
-                                        }
-
-                                        listOf(
-                                            "👍",
-                                            "❤️",
-                                            "😂",
-                                            "😮",
-                                            "😢",
-                                            "😡"
-                                        ).forEach { reaction ->
-                                            androidx.compose.material3.DropdownMenuItem(
-                                                text = {
-                                                    Text(
-                                                        reaction
-                                                    )
-                                                },
-                                                onClick = {
-                                                    val ownReaction =
-                                                        messageReactions.any {
-                                                            it.user_id ==
-                                                                currentUserId &&
-                                                                it.reaction ==
-                                                                reaction
-                                                        }
-
-                                                    if (ownReaction) {
-                                                        viewModel.removeMessageReaction(
-                                                            message.id
-                                                        )
-                                                    } else {
-                                                        viewModel.reactToMessage(
-                                                            message.id,
-                                                            reaction
-                                                        )
-                                                    }
-
-                                                    reactionMenuMessageId =
-                                                        null
-                                                }
-                                            )
+                                            delay(1000L)
                                         }
                                     }
+                                } else {
+                                    remainingSeconds = 0L
                                 }
 
                                 Row(
@@ -3215,6 +3596,25 @@ fun ChatScreen(
                                                 .typography
                                                 .labelSmall
                                     )
+
+                                    if (
+                                        isMine &&
+                                        remainingSeconds > 0L
+                                    ) {
+                                        Spacer(
+                                            modifier =
+                                                Modifier.width(4.dp)
+                                        )
+
+                                        Text(
+                                            text =
+                                                "${remainingSeconds}s",
+                                            style =
+                                                MaterialTheme
+                                                    .typography
+                                                    .labelSmall
+                                        )
+                                    }
 
                                     if (isMine) {
                                         Spacer(
@@ -3254,6 +3654,7 @@ fun ChatScreen(
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }
@@ -3446,9 +3847,14 @@ fun ChatScreen(
                 ) {
 
                     androidx.compose.material3.TextButton(
-                        onClick = {}
+                        contentPadding = PaddingValues(horizontal = 2.dp),
+onClick = {}
                     ) {
-                        Text("😊")
+                        Icon(
+                            imageVector = Icons.Filled.SentimentSatisfied,
+                            contentDescription = "Emoji",
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
 
                     androidx.compose.foundation.text.BasicTextField(
@@ -3494,12 +3900,16 @@ fun ChatScreen(
                     )
 
                     androidx.compose.material3.TextButton(
-                        onClick = {
+                        contentPadding = PaddingValues(horizontal = 2.dp),
+onClick = {
                             expiryMenuExpanded =
                                 true
                         }
                     ) {
-                        Text("⏳")
+                        Icon(
+                            imageVector = Icons.Filled.Timer,
+                            contentDescription = "Message timer"
+                        )
                     }
 
                     DropdownMenu(
@@ -3578,9 +3988,13 @@ fun ChatScreen(
                     }
 
                     androidx.compose.material3.TextButton(
-                        onClick = {}
+                        contentPadding = PaddingValues(horizontal = 2.dp),
+onClick = {}
                     ) {
-                        Text("📎")
+                        Icon(
+                            imageVector = Icons.Filled.AttachFile,
+                            contentDescription = "Attachment"
+                        )
                     }
                 }
             }
