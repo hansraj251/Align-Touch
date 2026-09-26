@@ -293,18 +293,31 @@ io.on(
                     const {
                         conversationId,
                         content,
+                        latitude,
+                        longitude,
                         replyToMessageId,
                         expiresAt
                     } = data || {};
 
+                    const hasLocation =
+                        latitude !== undefined &&
+                        longitude !== undefined;
+
                     const message =
-                        await messageService.sendTextMessage({
-                            conversationId,
-                            senderId: userId,
-                            content,
-                            replyToMessageId,
-                            expiresAt
-                        });
+                        hasLocation
+                            ? await messageService.createLocationMessage({
+                                conversationId,
+                                senderId: userId,
+                                latitude: Number(latitude),
+                                longitude: Number(longitude)
+                            })
+                            : await messageService.sendTextMessage({
+                                conversationId,
+                                senderId: userId,
+                                content,
+                                replyToMessageId,
+                                expiresAt
+                            });
 
                     const conversationRoom =
                         `conversation_${conversationId}`;

@@ -135,6 +135,63 @@ class AttachmentComposerTest {
     }
 
     @Test
+    fun locationAttachment_preservesCoordinates() {
+        val attachment =
+            LocationAttachmentFactory.fromCoordinates(
+                latitude = 30.900965,
+                longitude = 75.857277
+            )
+
+        assertEquals(
+            30.900965,
+            attachment.latitude,
+            0.000001
+        )
+
+        assertEquals(
+            75.857277,
+            attachment.longitude,
+            0.000001
+        )
+
+        assertEquals(
+            AttachmentKind.LOCATION,
+            attachment.kind
+        )
+    }
+
+
+    @Test
+    fun locationAttachment_rejectsInvalidLatitude() {
+        val exception =
+            runCatching {
+                LocationAttachmentFactory.fromCoordinates(
+                    latitude = 91.0,
+                    longitude = 75.857277
+                )
+            }.exceptionOrNull()
+
+        assertTrue(
+            exception is IllegalArgumentException
+        )
+    }
+
+    @Test
+    fun locationAttachment_rejectsInvalidLongitude() {
+        val exception =
+            runCatching {
+                LocationAttachmentFactory.fromCoordinates(
+                    latitude = 30.900965,
+                    longitude = 181.0
+                )
+            }.exceptionOrNull()
+
+        assertTrue(
+            exception is IllegalArgumentException
+        )
+    }
+
+    @Test
     fun camera_usesImageMimeType() {
         assertEquals(
             listOf("image/*"),

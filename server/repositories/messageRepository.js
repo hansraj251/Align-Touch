@@ -8,6 +8,8 @@ const messageRepository = {
         senderId,
         messageType,
         content,
+        latitude = null,
+        longitude = null,
         replyToMessageId,
         expiresAt,
         forwardedFromMessageId = null
@@ -21,6 +23,8 @@ const messageRepository = {
                     sender_id,
                     message_type,
                     content,
+                    latitude,
+                    longitude,
                     reply_to_message_id,
                     forwarded_from_message_id,
                     expires_at
@@ -32,7 +36,9 @@ const messageRepository = {
                     $4,
                     $5,
                     $6,
-                    $7
+                    $7,
+                    $8,
+                    $9
                 )
                 RETURNING
                     id,
@@ -40,6 +46,8 @@ const messageRepository = {
                     sender_id,
                     message_type,
                     content,
+                    latitude,
+                    longitude,
                     reply_to_message_id,
                     forwarded_from_message_id,
                     created_at,
@@ -52,6 +60,8 @@ const messageRepository = {
                     senderId,
                     messageType,
                     content,
+                    latitude,
+                    longitude,
                     replyToMessageId,
                     forwardedFromMessageId,
                     expiresAt
@@ -91,6 +101,8 @@ const messageRepository = {
                     sender_id,
                     message_type,
                     content,
+                    latitude,
+                    longitude,
                     reply_to_message_id,
                     forwarded_from_message_id,
                     created_at,
@@ -155,6 +167,8 @@ const messageRepository = {
                     sender_id,
                     message_type,
                     content,
+                    latitude,
+                    longitude,
                     reply_to_message_id,
                     forwarded_from_message_id,
                     created_at,

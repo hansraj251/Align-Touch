@@ -10,18 +10,28 @@ const messageController = {
             const {
                 conversationId,
                 content,
+                latitude,
+                longitude,
                 replyToMessageId,
                 expiresAt
             } = req.body;
 
             const message =
-                await messageService.sendTextMessage({
-                    conversationId,
-                    senderId: req.user.userId,
-                    content,
-                    replyToMessageId,
-                    expiresAt
-                });
+                latitude !== undefined &&
+                longitude !== undefined
+                    ? await messageService.createLocationMessage({
+                        conversationId,
+                        senderId: req.user.userId,
+                        latitude: Number(latitude),
+                        longitude: Number(longitude)
+                    })
+                    : await messageService.sendTextMessage({
+                        conversationId,
+                        senderId: req.user.userId,
+                        content,
+                        replyToMessageId,
+                        expiresAt
+                    });
 
             return res.status(201).json({
                 success: true,

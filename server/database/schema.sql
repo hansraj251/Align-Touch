@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS messages (
     sender_id BIGINT NOT NULL,
     message_type VARCHAR(20) NOT NULL DEFAULT 'text',
     content TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     reply_to_message_id BIGINT,
     forwarded_from_message_id BIGINT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
