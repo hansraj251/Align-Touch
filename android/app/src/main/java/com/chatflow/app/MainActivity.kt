@@ -2488,37 +2488,66 @@ fun NewChatScreen(
                                         vertical = 14.dp
 
                                     )
-
                         ) {
 
-                            Text(
+                            Row(
 
-                                text =
-                                    contactName.ifBlank {
-                                        contact.phone
-                                    },
+                                modifier =
+                                    Modifier.fillMaxWidth(),
 
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .titleMedium
+                                verticalAlignment =
+                                    Alignment.CenterVertically
 
-                            )
+                            ) {
 
-                            Text(
+                                contact.linked_user_id
+                                    ?.takeIf {
+                                        it.isNotBlank()
+                                    }
+                                    ?.let { linkedUserId ->
 
-                                text =
-                                    contact.country_code +
-                                        " " +
-                                        contact.phone,
+                                        UserAvatar(
+                                            userId =
+                                                linkedUserId,
+                                            displayName =
+                                                contactName.ifBlank {
+                                                    contact.phone
+                                                },
+                                            size = 52.dp
+                                        )
 
-                                style =
-                                    MaterialTheme
-                                        .typography
-                                        .bodyMedium
+                                        Spacer(
+                                            modifier =
+                                                Modifier.width(12.dp)
+                                        )
+                                    }
 
-                            )
+                                Column {
 
+                                    Text(
+                                        text =
+                                            contactName.ifBlank {
+                                                contact.phone
+                                            },
+                                        style =
+                                            MaterialTheme
+                                                .typography
+                                                .titleMedium
+                                    )
+
+                                    Text(
+                                        text =
+                                            contact.country_code +
+                                                " " +
+                                                contact.phone,
+                                        style =
+                                            MaterialTheme
+                                                .typography
+                                                .bodyMedium
+                                    )
+                                }
+                            }
+                        }
                         }
 
                     }
@@ -2526,7 +2555,6 @@ fun NewChatScreen(
                 }
             }
         }
-    }
 
 private fun formatLastSeen(lastSeenAt: String?): String {
     if (lastSeenAt.isNullOrBlank()) {
@@ -4773,12 +4801,10 @@ fun EditContactScreen(
         token,
         contactId
     ) {
-
         if (
             !token.isNullOrBlank() &&
             contactId.isNotBlank()
         ) {
-
             viewModel.loadContact(
                 token = token,
                 contactId = contactId
@@ -4789,11 +4815,8 @@ fun EditContactScreen(
     androidx.compose.runtime.LaunchedEffect(
         uiState.contact
     ) {
-
         uiState.contact?.let { contact ->
-
             if (!initialized) {
-
                 firstName =
                     contact.first_name
 
@@ -4816,12 +4839,16 @@ fun EditContactScreen(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(16.dp)
     ) {
 
         Row(
             modifier =
-                Modifier.fillMaxWidth(),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 8.dp,
+                        vertical = 4.dp
+                    ),
             verticalAlignment =
                 Alignment.CenterVertically
         ) {
@@ -4839,22 +4866,17 @@ fun EditContactScreen(
             }
 
             Text(
-                text = "Edit Contact",
+                text = "Contact info",
                 style =
                     MaterialTheme
                         .typography
-                        .headlineSmall,
+                        .titleLarge,
                 modifier =
                     Modifier.padding(
                         start = 4.dp
                     )
             )
         }
-
-        Spacer(
-            modifier =
-                Modifier.height(20.dp)
-        )
 
         if (uiState.loading) {
 
@@ -4867,187 +4889,379 @@ fun EditContactScreen(
                     Alignment.Center
             ) {
 
-                androidx.compose.material3.CircularProgressIndicator()
+                CircularProgressIndicator()
             }
 
-        } else {
+        } else if (uiState.contact != null) {
 
-            OutlinedTextField(
-                value = firstName,
-                onValueChange = {
-                    firstName = it
-                },
-                modifier =
-                    Modifier.fillMaxWidth(),
-                label = {
-                    Text("First name")
-                },
-                singleLine = true
-            )
+            val contact =
+                uiState.contact!!
 
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            OutlinedTextField(
-                value = lastName,
-                onValueChange = {
-                    lastName = it
-                },
-                modifier =
-                    Modifier.fillMaxWidth(),
-                label = {
-                    Text("Last name")
-                },
-                singleLine = true
-            )
-
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            Row(
-                modifier =
-                    Modifier.fillMaxWidth(),
-                horizontalArrangement =
-                    Arrangement.spacedBy(8.dp)
-            ) {
-
-                OutlinedTextField(
-                    value = countryCode,
-                    onValueChange = {
-                        countryCode = it
-                    },
-                    modifier =
-                        Modifier.width(100.dp),
-                    label = {
-                        Text("Code")
-                    },
-                    singleLine = true
+            val displayName =
+                listOf(
+                    firstName.trim(),
+                    lastName.trim()
                 )
-
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = {
-                        phone = it
-                    },
-                    modifier =
-                        Modifier.weight(1f),
-                    label = {
-                        Text("Phone")
-                    },
-                    readOnly = true,
-                    singleLine = true
-                )
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(24.dp)
-            )
-
-            if (
-                uiState.message.isNotBlank()
-            ) {
-
-                Text(
-                    text = uiState.message,
-                    modifier =
-                        Modifier.padding(
-                            bottom = 12.dp
-                        )
-                )
-            }
-
-            Button(
-                onClick = {
-
-                    if (!token.isNullOrBlank()) {
-
-                        viewModel.updateContact(
-                            token = token,
-                            contactId = contactId,
-                            request =
-                                com.chatflow.app.data
-                                    .UpdateContactRequest(
-                                        firstName =
-                                            firstName.trim(),
-                                        lastName =
-                                            lastName
-                                                .trim()
-                                                .ifBlank {
-                                                    null
-                                                },
-                                        countryCode =
-                                            countryCode.trim(),
-                                        phone =
-                                            phone.trim()
-                                    ),
-                            onSuccess = { updatedContact ->
-                                onSaved(updatedContact)
-                            }
-                        )
+                    .filter {
+                        it.isNotBlank()
                     }
-                },
+                    .joinToString(" ")
+
+            androidx.compose.foundation.lazy.LazyColumn(
                 modifier =
-                    Modifier.fillMaxWidth(),
-                enabled =
-                    firstName.isNotBlank() &&
-                    phone.isNotBlank() &&
-                    !uiState.saving
+                    Modifier
+                        .fillMaxSize(),
+                horizontalAlignment =
+                    Alignment.CenterHorizontally,
+                contentPadding =
+                    androidx.compose.foundation.layout.PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 20.dp,
+                        bottom = 32.dp
+                    )
             ) {
 
-                if (uiState.saving) {
+                item {
 
-                    androidx.compose.material3.CircularProgressIndicator(
+                    if (
+                        !contact.linked_user_id
+                            .isNullOrBlank()
+                    ) {
+
+                        UserAvatar(
+                            userId =
+                                contact.linked_user_id!!,
+                            displayName =
+                                displayName,
+                            size = 128.dp
+                        )
+
+                    } else {
+
+                        androidx.compose.material3.Surface(
+                            modifier =
+                                Modifier.size(128.dp),
+                            shape =
+                                androidx.compose.foundation
+                                    .shape
+                                    .CircleShape,
+                            color =
+                                MaterialTheme
+                                    .colorScheme
+                                    .surfaceVariant
+                        ) {
+
+                            androidx.compose.foundation.layout.Box(
+                                contentAlignment =
+                                    Alignment.Center
+                            ) {
+
+                                Text(
+                                    text =
+                                        displayName
+                                            .firstOrNull()
+                                            ?.uppercase()
+                                            ?: "?",
+                                    style =
+                                        MaterialTheme
+                                            .typography
+                                            .displaySmall
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(
                         modifier =
-                            Modifier.size(20.dp)
+                            Modifier.height(16.dp)
                     )
 
-                } else {
-
-                    Text("Save")
-                }
-            }
-
-            Spacer(
-                modifier =
-                    Modifier.height(12.dp)
-            )
-
-            androidx.compose.material3.OutlinedButton(
-                onClick = {
-                    showDeleteDialog = true
-                },
-                modifier =
-                    Modifier.fillMaxWidth(),
-                enabled =
-                    !uiState.saving &&
-                    !uiState.deleting
-            ) {
-                if (uiState.deleting) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        modifier =
-                            Modifier.size(20.dp)
+                    Text(
+                        text =
+                            displayName
+                                .ifBlank {
+                                    "Contact"
+                                },
+                        style =
+                            MaterialTheme
+                                .typography
+                                .headlineSmall
                     )
-                } else {
-                    Text("Delete Contact")
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(6.dp)
+                    )
+
+                    Text(
+                        text =
+                            countryCode.trim() +
+                                " " +
+                                phone.trim(),
+                        style =
+                            MaterialTheme
+                                .typography
+                                .bodyLarge,
+                        color =
+                            MaterialTheme
+                                .colorScheme
+                                .onSurfaceVariant
+                    )
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(28.dp)
+                    )
+
+                    androidx.compose.material3.HorizontalDivider()
+
+                    Spacer(
+                        modifier =
+                            Modifier.height(20.dp)
+                    )
+
+                    androidx.compose.foundation.layout.Column(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                    ) {
+
+                        Text(
+                            text = "Contact details",
+                            style =
+                                MaterialTheme
+                                    .typography
+                                    .titleMedium,
+                            modifier =
+                                Modifier.padding(
+                                    bottom = 12.dp
+                                )
+                        )
+
+                        OutlinedTextField(
+                            value = firstName,
+                            onValueChange = {
+                                firstName = it
+                            },
+                            modifier =
+                                Modifier.fillMaxWidth(),
+                            label = {
+                                Text("First name")
+                            },
+                            singleLine = true
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = lastName,
+                            onValueChange = {
+                                lastName = it
+                            },
+                            modifier =
+                                Modifier.fillMaxWidth(),
+                            label = {
+                                Text("Last name")
+                            },
+                            singleLine = true
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value =
+                                countryCode,
+                            onValueChange = {
+                                countryCode = it
+                            },
+                            modifier =
+                                Modifier.fillMaxWidth(),
+                            label = {
+                                Text("Country code")
+                            },
+                            singleLine = true
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = phone,
+                            onValueChange = {},
+                            modifier =
+                                Modifier.fillMaxWidth(),
+                            label = {
+                                Text("Phone")
+                            },
+                            readOnly = true,
+                            singleLine = true
+                        )
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(24.dp)
+                        )
+
+                        if (
+                            uiState.message
+                                .isNotBlank()
+                        ) {
+
+                            Text(
+                                text =
+                                    uiState.message,
+                                color =
+                                    MaterialTheme
+                                        .colorScheme
+                                        .error,
+                                modifier =
+                                    Modifier.padding(
+                                        bottom = 12.dp
+                                    )
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+
+                                if (
+                                    !token
+                                        .isNullOrBlank()
+                                ) {
+
+                                    viewModel.updateContact(
+                                        token = token,
+                                        contactId =
+                                            contactId,
+                                        request =
+                                            com.chatflow.app
+                                                .data
+                                                .UpdateContactRequest(
+                                                    firstName =
+                                                        firstName
+                                                            .trim(),
+                                                    lastName =
+                                                        lastName
+                                                            .trim()
+                                                            .ifBlank {
+                                                                null
+                                                            },
+                                                    countryCode =
+                                                        countryCode
+                                                            .trim(),
+                                                    phone =
+                                                        phone
+                                                            .trim()
+                                                ),
+                                        onSuccess = {
+                                            updatedContact ->
+                                            onSaved(
+                                                updatedContact
+                                            )
+                                        }
+                                    )
+                                }
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                            enabled =
+                                firstName
+                                    .isNotBlank() &&
+                                    phone
+                                        .isNotBlank() &&
+                                    !uiState.saving
+                        ) {
+
+                            if (
+                                uiState.saving
+                            ) {
+
+                                CircularProgressIndicator(
+                                    modifier =
+                                        Modifier.size(
+                                            20.dp
+                                        ),
+                                    strokeWidth = 2.dp
+                                )
+
+                            } else {
+
+                                Text(
+                                    text =
+                                        "Save Contact"
+                                )
+                            }
+                        }
+
+                        Spacer(
+                            modifier =
+                                Modifier.height(12.dp)
+                        )
+
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = {
+                                showDeleteDialog = true
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                            enabled =
+                                !uiState.saving &&
+                                    !uiState.deleting
+                        ) {
+
+                            if (
+                                uiState.deleting
+                            ) {
+
+                                CircularProgressIndicator(
+                                    modifier =
+                                        Modifier.size(
+                                            20.dp
+                                        ),
+                                    strokeWidth = 2.dp
+                                )
+
+                            } else {
+
+                                Text(
+                                    text =
+                                        "Delete Contact"
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
     if (showDeleteDialog) {
+
         androidx.compose.material3.AlertDialog(
             onDismissRequest = {
-                if (!uiState.deleting) {
+
+                if (
+                    !uiState.deleting
+                ) {
                     showDeleteDialog = false
                 }
             },
             title = {
-                Text("Delete Contact?")
+                Text(
+                    "Delete Contact?"
+                )
             },
             text = {
                 Text(
@@ -5055,14 +5269,23 @@ fun EditContactScreen(
                 )
             },
             confirmButton = {
+
                 androidx.compose.material3.TextButton(
                     onClick = {
-                        if (!token.isNullOrBlank()) {
+
+                        if (
+                            !token.isNullOrBlank()
+                        ) {
+
                             viewModel.deleteContact(
                                 token = token,
-                                contactId = contactId,
+                                contactId =
+                                    contactId,
                                 onSuccess = {
-                                    showDeleteDialog = false
+
+                                    showDeleteDialog =
+                                        false
+
                                     onBack()
                                 }
                             )
@@ -5071,18 +5294,27 @@ fun EditContactScreen(
                     enabled =
                         !uiState.deleting
                 ) {
-                    Text("Delete")
+
+                    Text(
+                        "Delete"
+                    )
                 }
             },
             dismissButton = {
+
                 androidx.compose.material3.TextButton(
                     onClick = {
-                        showDeleteDialog = false
+
+                        showDeleteDialog =
+                            false
                     },
                     enabled =
                         !uiState.deleting
                 ) {
-                    Text("Cancel")
+
+                    Text(
+                        "Cancel"
+                    )
                 }
             }
         )
