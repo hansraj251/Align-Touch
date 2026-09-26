@@ -2471,6 +2471,8 @@ fun NewChatScreen(
                                                     conversation.copy(
                                                         title =
                                                             contactName,
+                                                        contact_id =
+                                                            contact.id,
                                                         other_user_phone =
                                                             contact.phone,
                                                         other_user_display_name =
