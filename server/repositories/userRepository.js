@@ -246,8 +246,7 @@ const userRepository = {
         userId,
         {
             displayName,
-            about,
-            avatarUrl
+            about
         }
     ) {
 
@@ -258,7 +257,6 @@ const userRepository = {
                 SET
                     display_name = $2,
                     about = $3,
-                    avatar_url = $4,
                     updated_at = NOW()
                 WHERE id = $1
                 RETURNING
@@ -274,8 +272,7 @@ const userRepository = {
                 [
                     userId,
                     displayName,
-                    about,
-                    avatarUrl
+                    about
                 ]
             );
 

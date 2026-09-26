@@ -40,7 +40,7 @@ class SocketManager {
 
             socket =
                 IO.socket(
-                    "http://10.85.201.156:3000",
+                    "http://10.62.220.156:3000",
                     options
                 )
 

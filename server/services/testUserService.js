@@ -12,33 +12,44 @@ async function test() {
         "999" +
         Date.now().toString().slice(-7);
 
-    const user =
-        await userService.register({
-            phone: uniquePhone,
-            email: null,
-            password: "test123456",
-            displayName: "Test User"
+    const result =
+        await userService.loginWithOtp({
+
+            identifier:
+                uniquePhone
+
         });
 
     console.log(
-        "User created:",
-        user
+        "User login successful:"
+    );
+
+    console.log(
+        result
     );
 
     await pool.end();
+
 }
 
 test()
+
     .catch(
+
         async (error) => {
 
             console.error(
+
                 "User service test failed:",
+
                 error.message
+
             );
 
             await pool.end();
 
             process.exit(1);
+
         }
+
     );

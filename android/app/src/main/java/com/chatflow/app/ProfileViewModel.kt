@@ -103,7 +103,17 @@ class ProfileViewModel(
                 userId = userId
             )
 
+        android.util.Log.d(
+            "ChatFlowAvatar",
+            "loadAvatar(): cache=${cachedBytes?.size ?: 0} bytes"
+        )
+
         if (cachedBytes != null) {
+
+            android.util.Log.d(
+                "ChatFlowAvatar",
+                "Using cached avatar for userId=$userId"
+            )
 
             _uiState.value =
                 _uiState.value.copy(
@@ -112,6 +122,11 @@ class ProfileViewModel(
 
             return
         }
+
+        android.util.Log.d(
+            "ChatFlowAvatar",
+            "No cached avatar; downloading from server"
+        )
 
         val token =
             sessionManager.getToken()
@@ -146,13 +161,24 @@ class ProfileViewModel(
 
             } catch (error: Exception) {
 
-            }
+                android.util.Log.e(
+                    "ChatFlowAvatar",
+                    "Avatar upload failed",
+                    error
+                )
+
         }
+    }
     }
 
     fun uploadAvatar(
         uri: Uri
     ) {
+
+        android.util.Log.d(
+            "ChatFlowAvatar",
+            "uploadAvatar() called: $uri"
+        )
 
         val token =
             sessionManager.getToken()
@@ -206,11 +232,21 @@ class ProfileViewModel(
                         requestBody
                     )
 
+                android.util.Log.d(
+                    "ChatFlowAvatar",
+                    "Uploading avatar: bytes=${bytes.size}, mimeType=$mimeType"
+                )
+
                 val response =
                     repository.uploadAvatar(
                         file = filePart,
                         token = token
                     )
+
+                android.util.Log.d(
+                    "ChatFlowAvatar",
+                    "Avatar upload response received: user=${response.user?.id}, avatarUrl=${response.user?.avatar_url}"
+                )
 
                 response.user?.let { user ->
                     AvatarCache.write(

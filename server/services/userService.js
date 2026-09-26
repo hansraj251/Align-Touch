@@ -92,8 +92,7 @@ const userService = {
         userId,
         {
             displayName,
-            about,
-            avatarUrl
+            about
         }
     ) {
 
@@ -134,9 +133,7 @@ const userService = {
                 displayName:
                     normalizedDisplayName,
                 about:
-                    normalizedAbout,
-                avatarUrl:
-                    avatarUrl?.trim() || null
+                    normalizedAbout
             }
         );
     },

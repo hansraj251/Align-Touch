@@ -150,28 +150,103 @@ const userAvatarService = {
                 file.originalname
             );
 
+        const existingUser =
+
+            await userRepository.getById(
+
+                userId
+
+            );
+
+        if (!existingUser) {
+
+            throw new Error(
+
+                "User not found"
+
+            );
+
+        }
+
+        const oldAvatarUrl =
+
+            existingUser.avatar_url;
+
         let storageResult = null;
 
         try {
 
             storageResult =
+
                 avatarStorageService.saveFile({
+
                     buffer:
+
                         file.buffer,
+
                     extension
+
                 });
 
             const user =
+
                 await userRepository.updateAvatar(
+
                     userId,
+
                     storageResult.storageKey
+
                 );
 
             if (!user) {
 
                 throw new Error(
+
                     "User not found"
+
                 );
+
+            }
+
+            if (
+
+                oldAvatarUrl &&
+
+                String(
+
+                    oldAvatarUrl
+
+                ).startsWith(
+
+                    "avatars/"
+
+                ) &&
+
+                oldAvatarUrl !==
+
+                    storageResult.storageKey
+
+            ) {
+
+                try {
+
+                    avatarStorageService.deleteFile(
+
+                        oldAvatarUrl
+
+                    );
+
+                } catch (cleanupError) {
+
+                    console.error(
+
+                        "Old avatar cleanup error:",
+
+                        cleanupError
+
+                    );
+
+                }
 
             }
 

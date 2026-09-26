@@ -1627,10 +1627,6 @@ fun UserAvatar(
         userId
     ) {
 
-        if (avatarBytes != null) {
-            return@LaunchedEffect
-        }
-
         val token =
             SessionManager(context)
                 .getToken()
@@ -5111,7 +5107,16 @@ fun ProfileScreen(
                     .GetContent()
         ) { uri ->
             if (uri != null) {
+                android.util.Log.d(
+                    "ChatFlowAvatar",
+                    "Calling uploadAvatar()"
+                )
                 viewModel.uploadAvatar(uri)
+            } else {
+                android.util.Log.d(
+                    "ChatFlowAvatar",
+                    "Image picker returned null"
+                )
             }
         }
 
@@ -5216,18 +5221,13 @@ fun ProfileScreen(
                 modifier =
                     Modifier
                         .size(88.dp)
-                        .clip(
-                            androidx.compose.foundation.shape
-                                .CircleShape
-                        )
-                        .background(
-                            MaterialTheme
-                                .colorScheme
-                                .primaryContainer
-                        )
                         .clickable(
                             enabled = !uiState.saving
                         ) {
+                            android.util.Log.d(
+                                "ChatFlowAvatar",
+                                "Avatar clicked - launching picker"
+                            )
                             imagePicker.launch("image/*")
                         }
                         .align(
@@ -5243,17 +5243,28 @@ fun ProfileScreen(
                 if (avatarBytes != null) {
 
                     val bitmap =
-                        BitmapFactory.decodeByteArray(
-                            avatarBytes,
-                            0,
-                            avatarBytes.size
-                        )
+                        androidx.compose.runtime.remember(
+                            avatarBytes
+                        ) {
+                            BitmapFactory.decodeByteArray(
+                                avatarBytes,
+                                0,
+                                avatarBytes.size
+                            )
+                        }
 
                     if (bitmap != null) {
 
+                        val imageBitmap =
+                            androidx.compose.runtime.remember(
+                                bitmap
+                            ) {
+                                bitmap.asImageBitmap()
+                            }
+
                         androidx.compose.foundation.Image(
                             bitmap =
-                                bitmap.asImageBitmap(),
+                                imageBitmap,
                             contentDescription =
                                 "Profile photo",
                             modifier =
