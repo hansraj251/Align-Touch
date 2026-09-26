@@ -595,6 +595,57 @@ class MessageViewModel(
 
                 socketManager.listenForNewMessages { data ->
                     try {
+                        val attachments =
+                            if (
+                                data.has("attachments") &&
+                                !data.isNull("attachments")
+                            ) {
+                                val attachmentArray =
+                                    data.getJSONArray(
+                                        "attachments"
+                                    )
+
+                                (0 until attachmentArray.length())
+                                    .map { index ->
+                                        val attachment =
+                                            attachmentArray
+                                                .getJSONObject(index)
+
+                                        com.chatflow.app.data.MessageAttachment(
+                                            id =
+                                                attachment.getString(
+                                                    "id"
+                                                ),
+                                            message_id =
+                                                attachment.getString(
+                                                    "message_id"
+                                                ),
+                                            storage_key =
+                                                attachment.getString(
+                                                    "storage_key"
+                                                ),
+                                            original_name =
+                                                attachment.getString(
+                                                    "original_name"
+                                                ),
+                                            mime_type =
+                                                attachment.getString(
+                                                    "mime_type"
+                                                ),
+                                            file_size =
+                                                attachment.getLong(
+                                                    "file_size"
+                                                ),
+                                            created_at =
+                                                attachment.getString(
+                                                    "created_at"
+                                                )
+                                        )
+                                    }
+                            } else {
+                                emptyList()
+                            }
+
                         val message =
                             Message(
                                 id =
@@ -688,7 +739,9 @@ class MessageViewModel(
                                         data.getString(
                                             "expires_at"
                                         )
-                                    }
+                                    },
+                                attachments =
+                                    attachments
                             )
 
                         if (
@@ -1010,7 +1063,10 @@ class MessageViewModel(
 
     fun uploadAttachment(
         conversationId: String,
-        uri: Uri
+        uri: Uri,
+        content: String = "",
+        expiresAt: String? = null,
+        replyToMessageId: String? = null
     ) {
         val token =
             sessionManager.getToken()
@@ -1083,11 +1139,44 @@ class MessageViewModel(
                         "text/plain".toMediaTypeOrNull()
                     )
 
+                val contentBody =
+                    content
+                        .takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.toRequestBody(
+                            "text/plain".toMediaTypeOrNull()
+                        )
+
+                val replyBody =
+                    replyToMessageId
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.toRequestBody(
+                            "text/plain".toMediaTypeOrNull()
+                        )
+
+                val expiresBody =
+                    expiresAt
+                        ?.takeIf {
+                            it.isNotBlank()
+                        }
+                        ?.toRequestBody(
+                            "text/plain".toMediaTypeOrNull()
+                        )
+
                 val response =
                     attachmentRepository
                         .uploadAttachment(
                             conversationId =
                                 conversationBody,
+                            content =
+                                contentBody,
+                            replyToMessageId =
+                                replyBody,
+                            expiresAt =
+                                expiresBody,
                             file =
                                 filePart,
                             token =
@@ -1100,16 +1189,34 @@ class MessageViewModel(
                     )
                 }
 
+                val uploadedMessage =
+                    if (response.message.attachments.isEmpty()) {
+                        response.message.copy(
+                            attachments =
+                                listOf(response.attachment)
+                        )
+                    } else {
+                        response.message
+                    }
+
                 socketMessages.add(
-                    response.message
+                    uploadedMessage
                 )
+
+                val updatedMessages =
+                    MessageMerge.mergeMessages(
+                        restMessages =
+                            _uiState.value.messages,
+                        socketMessages =
+                            listOf(uploadedMessage)
+                    )
 
                 _uiState.value =
                     _uiState.value.copy(
                         uploadingAttachment = false,
                         attachmentMessage = "",
                         messages =
-                            socketMessages.toList()
+                            updatedMessages
                     )
             } catch (error: Exception) {
                 Log.e(
@@ -1205,9 +1312,43 @@ class MessageViewModel(
 
                     }
 
+                val context =
+                    getApplication<Application>()
+
+                val contentUri =
+                    androidx.core.content.FileProvider
+                        .getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            outputFile
+                        )
+
+                val openIntent =
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW
+                    ).apply {
+                        setDataAndType(
+                            contentUri,
+                            attachment.mime_type
+                        )
+                        addFlags(
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        addFlags(
+                            android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        )
+                    }
+
+                context.startActivity(
+                    android.content.Intent.createChooser(
+                        openIntent,
+                        "Open attachment with"
+                    )
+                )
+
                 Log.d(
                     "ChatFlowMessage",
-                    "Attachment downloaded: ${outputFile.absolutePath}"
+                    "Attachment downloaded and opened: ${outputFile.absolutePath}"
                 )
 
             } catch (error: Exception) {

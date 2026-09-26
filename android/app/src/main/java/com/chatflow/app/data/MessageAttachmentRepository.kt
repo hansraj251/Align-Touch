@@ -8,6 +8,9 @@ class MessageAttachmentRepository {
 
     suspend fun uploadAttachment(
         conversationId: RequestBody,
+        content: RequestBody?,
+        replyToMessageId: RequestBody?,
+        expiresAt: RequestBody?,
         file: MultipartBody.Part,
         token: String
     ): MessageAttachmentUploadResponse {
@@ -17,6 +20,12 @@ class MessageAttachmentRepository {
             .uploadAttachment(
                 conversationId =
                     conversationId,
+                content =
+                    content,
+                replyToMessageId =
+                    replyToMessageId,
+                expiresAt =
+                    expiresAt,
                 file =
                     file,
                 authorization =

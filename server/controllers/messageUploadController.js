@@ -15,7 +15,10 @@ const messageUploadController = {
     async uploadAttachment(req, res, io) {
         try {
             const {
-                conversationId
+                conversationId,
+                content,
+                replyToMessageId,
+                expiresAt
             } = req.body;
 
             const result =
@@ -25,15 +28,25 @@ const messageUploadController = {
                         senderId:
                             req.user.userId,
                         file:
-                            req.file
+                            req.file,
+                        content,
+                        replyToMessageId,
+                        expiresAt
                     });
 
             const conversationRoom =
                 `conversation_${conversationId}`;
 
+            const socketMessage = {
+                ...result.message,
+                attachments: [
+                    result.attachment
+                ]
+            };
+
             io.to(conversationRoom).emit(
                 "new_message",
-                result.message
+                socketMessage
             );
 
             return res.status(201).json({

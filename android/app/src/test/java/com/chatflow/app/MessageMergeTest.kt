@@ -92,6 +92,45 @@ class MessageMergeTest {
         )
     }
 
+    @Test
+    fun mergeMessages_preservesAttachmentsWhenSocketDuplicateHasNone() {
+        val attachment =
+            com.chatflow.app.data.MessageAttachment(
+                id = "attachment-1",
+                message_id = "1",
+                storage_key = "messages/1/photo.jpg",
+                original_name = "photo.jpg",
+                mime_type = "image/jpeg",
+                file_size = 1024L,
+                created_at = "2026-09-22T10:00:00Z"
+            )
+
+        val restMessage =
+            message(
+                id = "1",
+                createdAt = "2026-09-22T10:00:00Z"
+            ).copy(
+                attachments = listOf(attachment)
+            )
+
+        val socketMessage =
+            message(
+                id = "1",
+                createdAt = "2026-09-22T10:00:00Z"
+            )
+
+        val result =
+            MessageMerge.mergeMessages(
+                restMessages = listOf(restMessage),
+                socketMessages = listOf(socketMessage)
+            )
+
+        assertEquals(
+            listOf("attachment-1"),
+            result.first().attachments.map { it.id }
+        )
+    }
+
     private fun message(
         id: String,
         createdAt: String
@@ -103,8 +142,10 @@ class MessageMergeTest {
             message_type = "text",
             content = "Hello",
             reply_to_message_id = null,
+            forwarded_from_message_id = null,
             created_at = createdAt,
             edited_at = null,
-            deleted_at = null
+            deleted_at = null,
+            expires_at = null
         )
 }

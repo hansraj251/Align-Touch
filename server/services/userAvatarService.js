@@ -56,6 +56,16 @@ const userAvatarService = {
 
         }
 
+        console.log(
+            "AVATAR DEBUG:",
+            JSON.stringify({
+                userId,
+                repositoryUserId: user.id,
+                avatarUrl: user.avatar_url,
+                avatarUrlType: typeof user.avatar_url
+            })
+        );
+
         if (
             !user.avatar_url ||
             !String(
