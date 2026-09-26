@@ -4348,33 +4348,18 @@ onClick = {
                     }
 
                     androidx.compose.material3.TextButton(
-                    contentPadding =
-                        PaddingValues(horizontal = 2.dp),
-                    onClick = {
-                        attachmentMenuExpanded = true
-                    }
+                        contentPadding =
+                            PaddingValues(horizontal = 2.dp),
+                        onClick = {
+                            attachmentMenuExpanded = true
+                        }
                     ) {
-
-
                         Icon(
-<<<<<<< HEAD
-
-
-                            imageVector = Icons.Filled.AttachFile,
-
-
-                            contentDescription = "Attachment"
-
-
-=======
                             imageVector =
                                 Icons.Filled.AttachFile,
                             contentDescription =
                                 "Attachment"
->>>>>>> feature/whatsapp-attachments
                         )
-
-
                     }
 
                     DropdownMenu(
