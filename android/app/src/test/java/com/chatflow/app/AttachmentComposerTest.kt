@@ -103,6 +103,38 @@ class AttachmentComposerTest {
 
 
     @Test
+
+    fun cameraResult_createsCameraAttachment() {
+
+        val attachment =
+
+            CameraAttachmentFactory.fromUri(
+
+                "content://camera/photo"
+
+            )
+
+        assertEquals(
+
+            PendingAttachment(
+
+                uri = "content://camera/photo",
+
+                mimeType = "image/jpeg",
+
+                displayName = "Camera photo",
+
+                kind = AttachmentKind.CAMERA
+
+            ),
+
+            attachment
+
+        )
+
+    }
+
+    @Test
     fun camera_usesImageMimeType() {
         assertEquals(
             listOf("image/*"),

@@ -24,6 +24,8 @@ import android.util.Log
 import android.os.Bundle
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.core.content.FileProvider
+import java.io.File
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
@@ -2749,6 +2751,72 @@ fun ChatScreen(
             }
         }
 
+    var cameraOutputUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
+    val cameraLauncher =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .TakePicture()
+        ) { success ->
+            if (success) {
+                cameraOutputUri?.let { uri ->
+                    pendingAttachment =
+                        CameraAttachmentFactory.fromUri(
+                            uri.toString()
+                        )
+                }
+            }
+            cameraOutputUri = null
+        }
+
+    val cameraPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts
+                    .RequestPermission()
+        ) { granted ->
+            if (granted) {
+                val cameraDirectory =
+                    File(
+                        context.cacheDir,
+                        "chatflow_attachments"
+                    )
+
+                if (!cameraDirectory.exists()) {
+                    cameraDirectory.mkdirs()
+                }
+
+                val cameraFile =
+                    File(
+                        cameraDirectory,
+                        "camera_${System.currentTimeMillis()}.jpg"
+                    )
+
+                val outputUri =
+                    FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        cameraFile
+                    )
+
+                cameraOutputUri =
+                    outputUri
+
+                cameraLauncher.launch(
+                    outputUri
+                )
+            } else {
+                Toast.makeText(
+                    context,
+                    "Camera permission is required.",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
     val audioPicker =
         rememberLauncherForActivityResult(
             contract =
@@ -4409,7 +4477,51 @@ onClick = {
                                             )
                                         }
 
-                                        AttachmentKind.CAMERA,
+                                        AttachmentKind.CAMERA -> {
+                            if (
+                                androidx.core.content.ContextCompat
+                                    .checkSelfPermission(
+                                        context,
+                                        android.Manifest.permission.CAMERA
+                                    ) ==
+                                android.content.pm.PackageManager.PERMISSION_GRANTED
+                            ) {
+                                val cameraDirectory =
+                                    File(
+                                        context.cacheDir,
+                                        "chatflow_attachments"
+                                    )
+
+                                if (!cameraDirectory.exists()) {
+                                    cameraDirectory.mkdirs()
+                                }
+
+                                val cameraFile =
+                                    File(
+                                        cameraDirectory,
+                                        "camera_${System.currentTimeMillis()}.jpg"
+                                    )
+
+                                val outputUri =
+                                    FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        cameraFile
+                                    )
+
+                                cameraOutputUri =
+                                    outputUri
+
+                                cameraLauncher.launch(
+                                    outputUri
+                                )
+                            } else {
+                                cameraPermissionLauncher.launch(
+                                    android.Manifest.permission.CAMERA
+                                )
+                            }
+                        }
+
                                         AttachmentKind.LOCATION,
                                         AttachmentKind.CONTACT -> {
                                             Toast.makeText(
