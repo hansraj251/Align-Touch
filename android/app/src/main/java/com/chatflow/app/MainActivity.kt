@@ -4443,12 +4443,19 @@ onClick = {
                             }
 
                         if (pendingAttachment != null) {
+                            val attachment = pendingAttachment!!
+
                             viewModel.uploadAttachment(
                                 conversationId = conversationId,
                                 uri = Uri.parse(
-                                    pendingAttachment!!.uri
-                                )
+                                    attachment.uri
+                                ),
+                                content = messageText,
+                                expiresAt = expiresAt,
+                                replyToMessageId =
+                                    replyingToMessage?.id
                             )
+
                             pendingAttachment = null
                         } else {
                             viewModel.sendMessage(
@@ -4465,6 +4472,7 @@ onClick = {
                 },
                 enabled =
                     !uiState.sending &&
+                    !uiState.uploadingAttachment &&
                     (
                         messageText.isNotBlank() ||
                         pendingAttachment != null

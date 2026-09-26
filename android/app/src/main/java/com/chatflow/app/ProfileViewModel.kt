@@ -261,7 +261,8 @@ class ProfileViewModel(
                     )
 
                 _uiState.value =
-                    ProfileUiState(
+                    _uiState.value.copy(
+                        saving = false,
                         user =
                             response.user,
                         message =

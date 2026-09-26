@@ -117,10 +117,33 @@ const messageUploadController = {
                     attachment.original_name
                 ).replace(/"/g, "")}"`
             );
+            const fileStream =
+                fs.createReadStream(
+                    filePath
+                );
 
-            return res.sendFile(
-                filePath
+            fileStream.on(
+                "error",
+                (error) => {
+                    console.error(
+                        "Attachment stream error:",
+                        error
+                    );
+
+                    if (!res.headersSent) {
+                        res.status(404).json({
+                            success: false,
+                            message:
+                                "Attachment file not found"
+                        });
+                    } else {
+                        res.destroy(error);
+                    }
+                }
             );
+
+            return fileStream.pipe(res);
+
 
         } catch (error) {
 
